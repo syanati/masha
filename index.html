@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0, touch-action: manipulation">
-    <title>Masha y el Oso - Aventura en el Bosque</title>
+    <title>Masha y el Oso - Aventura Gigante</title>
     <style>
         * {
             margin: 0;
@@ -19,12 +19,12 @@
             align-items: center;
             min-height: 100vh;
             font-family: 'Segoe UI', 'Comic Neue', cursive;
-            touch-action: pan-x pan-y; /* permite deslizar si es necesario, pero los botones capturan el toque */
+            touch-action: pan-x pan-y;
         }
         .game-wrapper {
             width: 100%;
-            max-width: 800px;
-            padding: 10px;
+            max-width: 1300px;
+            padding: 15px;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -33,17 +33,18 @@
             width: 100%;
             height: auto;
             aspect-ratio: 1100 / 620;
-            border-radius: 20px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            border-radius: 24px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.5);
             background: #87c38f;
+            cursor: pointer;
         }
         .control-bar {
             display: flex;
             justify-content: space-between;
             align-items: center;
             width: 100%;
-            margin: 15px 0;
-            gap: 10px;
+            margin: 20px 0 10px;
+            gap: 15px;
             flex-wrap: wrap;
         }
         .btn {
@@ -51,12 +52,12 @@
             border: none;
             color: #2d1b0c;
             font-weight: bold;
-            padding: 12px 24px;
-            border-radius: 50px;
+            padding: 12px 28px;
+            border-radius: 60px;
             font-size: 1.2rem;
             cursor: pointer;
             box-shadow: 0 6px 0 #b85e1a;
-            transition: 0.1s;
+            transition: 0.07s linear;
             touch-action: manipulation;
         }
         .btn:active {
@@ -65,21 +66,22 @@
         }
         .move-buttons {
             display: flex;
-            gap: 20px;
+            gap: 25px;
         }
         .move-btn {
-            width: 70px;
-            height: 70px;
+            width: 75px;
+            height: 75px;
             border-radius: 50%;
             background: #5f3b1c;
             color: white;
-            font-size: 2rem;
+            font-size: 2.2rem;
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 6px 0 #2d1a0a;
+            box-shadow: 0 7px 0 #2d1a0a;
             touch-action: manipulation;
             border: none;
+            font-weight: bold;
         }
         .move-btn:active {
             transform: translateY(4px);
@@ -87,44 +89,48 @@
         }
         .score {
             background: #fef5e0;
-            padding: 10px 25px;
-            border-radius: 50px;
-            font-size: 1.8rem;
+            padding: 10px 30px;
+            border-radius: 60px;
+            font-size: 2rem;
             font-weight: bold;
             color: #c73f1e;
-            box-shadow: inset 0 2px 5px rgba(0,0,0,0.2);
+            box-shadow: inset 0 2px 8px rgba(0,0,0,0.2), 0 5px 10px rgba(0,0,0,0.2);
         }
         .upload-area {
             background: #e7bc7e;
-            padding: 8px 18px;
-            border-radius: 50px;
+            padding: 8px 20px;
+            border-radius: 60px;
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 15px;
             flex-wrap: wrap;
         }
         .upload-label {
             background: #f3a546;
-            padding: 8px 18px;
-            border-radius: 40px;
+            padding: 10px 22px;
+            border-radius: 50px;
             font-weight: bold;
             cursor: pointer;
             color: #2d1b0c;
-            font-size: 1rem;
+            font-size: 1.1rem;
+            transition: 0.05s linear;
+        }
+        .upload-label:active {
+            transform: scale(0.96);
         }
         #heroPhoto {
             display: none;
         }
-        @media (max-width: 600px) {
-            .btn { padding: 10px 18px; font-size: 1rem; }
+        @media (max-width: 750px) {
             .move-btn { width: 60px; height: 60px; font-size: 1.8rem; }
-            .score { font-size: 1.4rem; padding: 8px 20px; }
+            .score { font-size: 1.5rem; padding: 6px 20px; }
+            .btn, .upload-label { padding: 8px 16px; font-size: 0.9rem; }
         }
     </style>
 </head>
 <body>
 <div class="game-wrapper">
-    <canvas id="gameCanvas"></canvas>
+    <canvas id="gameCanvas" width="1100" height="620"></canvas>
 
     <div class="control-bar">
         <div class="move-buttons">
@@ -135,269 +141,457 @@
             🍎 <span id="fruitCounter">0</span>/5
         </div>
         <div class="upload-area">
-            <label class="upload-label" for="heroPhoto">📸 Subir foto</label>
+            <label class="upload-label" for="heroPhoto">📸 SUBIR MI FOTO</label>
             <input type="file" id="heroPhoto" accept="image/png, image/jpeg, image/jpg, image/webp">
-            <button class="btn" id="resetBtn">🔄 Reiniciar</button>
+            <button class="btn" id="resetBtn">🌲 REINICIAR</button>
         </div>
     </div>
 </div>
 
 <script>
     (function(){
-        // ---------- CONFIGURACIÓN DEL CANVAS ----------
+        // ========== CONFIGURACIÓN DEL CANVAS (TAMAÑO FIJO 1100x620) ==========
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
-        const CW = 1100;  // ancho lógico
-        const CH = 620;   // alto lógico
-        const DPR = window.devicePixelRatio || 1;
+        const CW = 1100;
+        const CH = 620;
+        canvas.width = CW;
+        canvas.height = CH;
 
-        function resizeCanvas() {
-            canvas.width = CW * DPR;
-            canvas.height = CH * DPR;
-            canvas.style.width = '100%';
-            canvas.style.height = 'auto';
-            ctx.setTransform(1,0,0,1,0,0); // reset
-            ctx.scale(DPR, DPR);
-        }
-        resizeCanvas();
+        // ========== PROTAGONISTA: SOLO LA FOTO DEL USUARIO (CUERPO COMPLETO) ==========
+        let userPhoto = null;          // imagen subida por el usuario
+        const heroW = 90;              // más grande y visible
+        const heroH = 100;
+        let heroX = CW/2 - heroW/2;
+        const groundY = CH - heroH - 15;   // posición en el suelo
+        let heroY = groundY;
 
-        // ---------- IMÁGENES ----------
-        const images = {};
-        const imageSources = {
-            background: 'fondo_bosque.png',
-            wolf: 'lobo_arbol.png',
-            bear: 'oso_saludo.png',
-            rabbit: 'conejo_saludo.png',
-            fruit: 'fruta.png',
-            heroBody: 'cuerpo_masha.png',
-            heroDefault: 'masha_default.png'
-        };
-
-        let imagesLoaded = 0;
-        const totalImages = Object.keys(imageSources).length;
-
-        // ---------- ESTADO DEL JUEGO ----------
-        let heroImage = null;        // foto del usuario
-        let heroX = CW/2 - 42;       // centro
-        const heroW = 84;
-        const heroH = 92;
-        const groundY = CH - heroH - 20;
-
+        // Movimiento
         let leftPressed = false;
         let rightPressed = false;
-        const moveSpeed = 6;
+        const moveSpeed = 6.8;
 
+        // ========== FRUTAS 5 VECES MÁS GRANDES (tamaño original 24 → 120) ==========
         let wolfFruits = [];
-        const FRUIT_SIZE = 24;
+        const FRUIT_SIZE = 120;           // ¡5 veces más grande! (24*5 = 120)
         let fruitsCollected = 0;
         let wolfThrowCooldown = 0;
 
+        // ========== EVENTO ESPECIAL: OSO Y CONEJO (tamaño 2X) ==========
         let specialEventActive = false;
         let eventTimer = 0;
         const EVENT_DURATION = 100;
 
+        // ========== PARTÍCULAS ==========
         let particles = [];
 
-        // ---------- PRECARGA ----------
-        function loadImages() {
-            for (let key in imageSources) {
-                const img = new Image();
-                img.src = imageSources[key];
-                img.onload = () => {
-                    imagesLoaded++;
-                    if (imagesLoaded === totalImages) startGame();
-                };
-                img.onerror = () => {
-                    console.error('Error al cargar imagen:', key);
-                    imagesLoaded++;
-                    if (imagesLoaded === totalImages) startGame();
-                };
-                images[key] = img;
-            }
-        }
+        // ========== DIBUJO DE FONDO ESPECTACULAR (ESTILO SERIE) ==========
+        function drawMasterBackground() {
+            // Cielo cálido
+            const gradSky = ctx.createLinearGradient(0, 0, 0, CH*0.6);
+            gradSky.addColorStop(0, '#ffe5b4');
+            gradSky.addColorStop(0.5, '#ffd58c');
+            gradSky.addColorStop(1, '#c2e0a0');
+            ctx.fillStyle = gradSky;
+            ctx.fillRect(0, 0, CW, CH);
 
-        function startGame() {
-            resetGame();
-            gameLoop();
-        }
+            // Nubes esponjosas
+            ctx.fillStyle = '#fff8e7';
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = 'rgba(0,0,0,0.1)';
+            ctx.beginPath();
+            ctx.ellipse(150, 65, 65, 50, 0, 0, Math.PI*2);
+            ctx.ellipse(210, 45, 80, 55, 0, 0, Math.PI*2);
+            ctx.ellipse(280, 70, 60, 48, 0, 0, Math.PI*2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.ellipse(850, 80, 70, 52, 0, 0, Math.PI*2);
+            ctx.ellipse(930, 55, 85, 58, 0, 0, Math.PI*2);
+            ctx.fill();
+            ctx.shadowBlur = 0;
 
-        // ---------- PARTÍCULAS ----------
-        function spawnParticles(x, y, count, color) {
-            for (let i = 0; i < count; i++) {
-                particles.push({
-                    x: x, y: y,
-                    vx: (Math.random() - 0.5) * 6,
-                    vy: (Math.random() - 2) * -5,
-                    life: 1,
-                    decay: 0.02 + Math.random() * 0.03,
-                    size: 3 + Math.random() * 5,
-                    color: color
-                });
-            }
-        }
+            // Montañas al fondo
+            ctx.fillStyle = '#9dbd7a';
+            ctx.beginPath();
+            ctx.moveTo(0, CH-180);
+            ctx.lineTo(180, CH-260);
+            ctx.lineTo(380, CH-190);
+            ctx.lineTo(550, CH-280);
+            ctx.lineTo(750, CH-210);
+            ctx.lineTo(950, CH-300);
+            ctx.lineTo(1100, CH-220);
+            ctx.lineTo(1100, CH);
+            ctx.lineTo(0, CH);
+            ctx.fill();
+            ctx.fillStyle = '#7ca05a';
+            ctx.beginPath();
+            ctx.moveTo(0, CH-150);
+            ctx.lineTo(130, CH-220);
+            ctx.lineTo(300, CH-160);
+            ctx.lineTo(500, CH-240);
+            ctx.lineTo(700, CH-180);
+            ctx.fill();
 
-        function updateParticles() {
-            for (let i = particles.length - 1; i >= 0; i--) {
-                let p = particles[i];
-                p.x += p.vx;
-                p.y += p.vy;
-                p.vy += 0.2;
-                p.life -= p.decay;
-                if (p.life <= 0) particles.splice(i, 1);
-            }
-        }
-
-        function drawParticles() {
-            for (let p of particles) {
-                ctx.globalAlpha = p.life;
-                ctx.fillStyle = p.color;
+            // Suelo con textura de hierba y flores
+            ctx.fillStyle = '#6f9e45';
+            ctx.fillRect(0, CH-110, CW, 115);
+            ctx.strokeStyle = '#457a24';
+            ctx.lineWidth = 1.8;
+            for(let i=0;i<180;i++) {
+                let x = (i*23) % CW;
                 ctx.beginPath();
-                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.moveTo(x, CH-112);
+                ctx.lineTo(x+4, CH-130);
+                ctx.lineTo(x-3, CH-125);
+                ctx.fillStyle = '#5b8c32';
+                ctx.fill();
+            }
+            // Flores
+            for(let f=0;f<45;f++) {
+                let fx = (f*37 + 12) % CW;
+                let fy = CH-95 + Math.sin(f)*7;
+                ctx.fillStyle = '#ffde7a';
+                ctx.beginPath();
+                ctx.arc(fx, fy, 4, 0, Math.PI*2);
+                ctx.fill();
+                ctx.fillStyle = '#ffa047';
+                ctx.beginPath();
+                ctx.arc(fx-2, fy-1, 2, 0, Math.PI*2);
+                ctx.fill();
+            }
+            // Arroyo
+            ctx.fillStyle = '#6fcfe0';
+            ctx.globalAlpha = 0.6;
+            ctx.fillRect(0, CH-48, CW, 18);
+            ctx.fillStyle = '#a8e4f0';
+            for(let w=0;w<15;w++) {
+                ctx.beginPath();
+                ctx.ellipse(70+w*80, CH-42, 12, 6, 0, 0, Math.PI*2);
                 ctx.fill();
             }
             ctx.globalAlpha = 1;
         }
 
-        // ---------- DIBUJOS CON IMÁGENES REALES ----------
-        function drawBackground() {
-            if (images.background) {
-                ctx.drawImage(images.background, 0, 0, CW, CH);
-            } else {
-                ctx.fillStyle = '#6f9e45';
-                ctx.fillRect(0, 0, CW, CH);
+        // ========== ÁRBOL DEL LOBO (reubicado más arriba y derecha) ==========
+        function drawWolfTree() {
+            ctx.fillStyle = '#7a4a2c';
+            ctx.shadowBlur = 5;
+            ctx.fillRect(95, CH-310, 70, 230);   // tronco más a la derecha
+            ctx.fillStyle = '#9c6a3e';
+            for(let t=0;t<12;t++) {
+                ctx.fillRect(98+t*5, CH-290, 5, 14);
             }
+            // Copa
+            ctx.fillStyle = '#367c2a';
+            ctx.beginPath();
+            ctx.ellipse(135, CH-330, 65, 68, 0, 0, Math.PI*2);
+            ctx.fill();
+            ctx.fillStyle = '#57a53a';
+            ctx.beginPath();
+            ctx.ellipse(105, CH-348, 48, 55, 0, 0, Math.PI*2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.ellipse(170, CH-352, 52, 58, 0, 0, Math.PI*2);
+            ctx.fill();
+            ctx.fillStyle = '#7a4a2c';
+            ctx.fillRect(145, CH-340, 45, 15);
+            ctx.fillRect(85, CH-335, 42, 12);
+            ctx.shadowBlur = 0;
         }
 
-        function drawWolf() {
-            if (images.wolf) {
-                ctx.drawImage(images.wolf, 50, CH - 350, 140, 220);
-            }
+        // ========== LOBO (más arriba y derecha: x:95, y más alto) ==========
+        function drawWolfOnTree() {
+            ctx.save();
+            ctx.shadowBlur = 3;
+            const baseX = 115;       // más a la derecha
+            const baseY = CH-365;     // más arriba (antes CH-330)
+            // Cuerpo
+            ctx.fillStyle = '#6f5a48';
+            ctx.beginPath();
+            ctx.ellipse(baseX+18, baseY+8, 28, 32, 0.1, 0, Math.PI*2);
+            ctx.fill();
+            ctx.fillStyle = '#947c62';
+            ctx.beginPath();
+            ctx.ellipse(baseX+8, baseY+0, 24, 26, -0.1, 0, Math.PI*2);
+            ctx.fill();
+            // Cabeza
+            ctx.fillStyle = '#b88a60';
+            ctx.beginPath();
+            ctx.ellipse(baseX+25, baseY-16, 22, 24, 0, 0, Math.PI*2);
+            ctx.fill();
+            // Orejas
+            ctx.fillStyle = '#8b5a3c';
+            ctx.beginPath();
+            ctx.moveTo(baseX+12, baseY-30);
+            ctx.lineTo(baseX+2, baseY-46);
+            ctx.lineTo(baseX+20, baseY-36);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.moveTo(baseX+36, baseY-29);
+            ctx.lineTo(baseX+48, baseY-44);
+            ctx.lineTo(baseX+44, baseY-34);
+            ctx.fill();
+            // Ojos
+            ctx.fillStyle = '#1f1a12';
+            ctx.beginPath();
+            ctx.arc(baseX+18, baseY-20, 3.5, 0, Math.PI*2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(baseX+34, baseY-20, 3.5, 0, Math.PI*2);
+            ctx.fill();
+            ctx.fillStyle = "#ffffff";
+            ctx.beginPath();
+            ctx.arc(baseX+16, baseY-21, 1.2, 0, Math.PI*2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(baseX+32, baseY-21, 1.2, 0, Math.PI*2);
+            ctx.fill();
+            ctx.fillStyle = '#8c5a38';
+            ctx.beginPath();
+            ctx.ellipse(baseX+25, baseY-12, 8, 5, 0, 0, Math.PI*2);
+            ctx.fill();
+            ctx.fillStyle = "#401f0a";
+            ctx.beginPath();
+            ctx.arc(baseX+25, baseY-12, 2.5, 0, Math.PI*2);
+            ctx.fill();
+            // Cola
+            ctx.fillStyle = '#9f7f60';
+            ctx.beginPath();
+            ctx.moveTo(baseX-2, baseY+10);
+            ctx.quadraticCurveTo(baseX-20, baseY+2, baseX-12, baseY+18);
+            ctx.fill();
+            ctx.restore();
         }
 
-        function drawFruit(x, y) {
-            if (images.fruit) {
-                ctx.drawImage(images.fruit, x, y, FRUIT_SIZE, FRUIT_SIZE);
-            } else {
-                // respaldo
-                ctx.fillStyle = '#e6321c';
+        // ========== FRUTA GIGANTE (5 veces más grande) ==========
+        function drawGiantFruit(x, y) {
+            ctx.save();
+            ctx.shadowBlur = 8;
+            ctx.fillStyle = '#e6321c';
+            ctx.beginPath();
+            ctx.ellipse(x+FRUIT_SIZE/2, y+FRUIT_SIZE/2, FRUIT_SIZE/2-5, FRUIT_SIZE/2-3, 0, 0, Math.PI*2);
+            ctx.fill();
+            ctx.fillStyle = '#c92512';
+            ctx.beginPath();
+            ctx.ellipse(x+FRUIT_SIZE/2-12, y+FRUIT_SIZE/2-8, 10, 12, 0, 0, Math.PI*2);
+            ctx.fill();
+            ctx.fillStyle = '#6a9530';
+            ctx.beginPath();
+            ctx.moveTo(x+FRUIT_SIZE/2, y+8);
+            ctx.lineTo(x+FRUIT_SIZE/2+12, y-6);
+            ctx.lineTo(x+FRUIT_SIZE/2-12, y-6);
+            ctx.fill();
+            ctx.fillStyle = '#ffd966';
+            ctx.beginPath();
+            ctx.arc(x+FRUIT_SIZE/2-8, y+FRUIT_SIZE/2-10, 5, 0, Math.PI*2);
+            ctx.fill();
+            ctx.restore();
+        }
+
+        // ========== PROTAGONISTA: SOLO LA FOTO (CUERPO COMPLETO) ==========
+        function drawHero() {
+            if (userPhoto && userPhoto.complete && userPhoto.naturalWidth > 0) {
+                // Dibujamos la foto del usuario ocupando todo el cuerpo
+                ctx.save();
+                ctx.shadowBlur = 6;
                 ctx.beginPath();
-                ctx.arc(x+FRUIT_SIZE/2, y+FRUIT_SIZE/2, FRUIT_SIZE/2-2, 0, Math.PI*2);
+                ctx.roundRect(heroX, heroY, heroW, heroH, 15);
+                ctx.clip();
+                ctx.drawImage(userPhoto, heroX, heroY, heroW, heroH);
+                ctx.restore();
+                // Marco decorativo
+                ctx.beginPath();
+                ctx.roundRect(heroX, heroY, heroW, heroH, 15);
+                ctx.strokeStyle = '#ffd966';
+                ctx.lineWidth = 3.5;
+                ctx.stroke();
+                // Pequeño detalle: una flor en la cabeza
+                ctx.fillStyle = '#ff88aa';
+                ctx.beginPath();
+                ctx.ellipse(heroX+heroW-18, heroY+14, 11, 10, 0.2, 0, Math.PI*2);
+                ctx.fill();
+                ctx.fillStyle = '#ffd966';
+                ctx.beginPath();
+                ctx.ellipse(heroX+heroW-21, heroY+13, 6, 6, 0, 0, Math.PI*2);
+                ctx.fill();
+            } else {
+                // Si aún no subió foto: dibujamos una silueta divertida con mensaje
+                ctx.fillStyle = '#c0a070';
+                ctx.beginPath();
+                ctx.roundRect(heroX, heroY, heroW, heroH, 15);
+                ctx.fill();
+                ctx.fillStyle = '#5a3a1a';
+                ctx.font = "bold 14px 'Comic Neue'";
+                ctx.fillText("📸 SUBE TU", heroX+12, heroY+45);
+                ctx.fillText("   FOTO", heroX+22, heroY+65);
+                ctx.fillStyle = "#ffaa66";
+                ctx.beginPath();
+                ctx.arc(heroX+heroW-20, heroY+22, 9, 0, Math.PI*2);
                 ctx.fill();
             }
         }
 
-        function drawHero() {
-            // Cuerpo de Masha
-            if (images.heroBody) {
-                ctx.drawImage(images.heroBody, heroX, groundY, heroW, heroH);
-            }
-
-            // Cabeza (foto o default)
-            const headCX = heroX + heroW/2;
-            const headCY = groundY + 22;
-            const headRadius = 28;
-
-            ctx.save();
-            ctx.beginPath();
-            ctx.arc(headCX, headCY, headRadius, 0, Math.PI * 2);
-            ctx.closePath();
-            ctx.clip();
-
-            if (heroImage && heroImage.complete && heroImage.naturalWidth > 0) {
-                // Foto del usuario
-                ctx.drawImage(heroImage,
-                    headCX - headRadius, headCY - headRadius,
-                    headRadius * 2, headRadius * 2);
-            } else if (images.heroDefault) {
-                // Masha por defecto (cabeza y cuerpo ya incluidos en heroBody? Para evitar doble cuerpo, mejor dibujar solo cabeza)
-                // Dibujamos la imagen completa escalada dentro del círculo
-                ctx.drawImage(images.heroDefault,
-                    headCX - headRadius, headCY - headRadius - 10,
-                    headRadius * 2, headRadius * 2 + 10);
-            }
-            ctx.restore();
-
-            // Borde de la cabeza
-            ctx.beginPath();
-            ctx.arc(headCX, headCY, headRadius, 0, Math.PI * 2);
-            ctx.strokeStyle = '#ffd966';
-            ctx.lineWidth = 3;
-            ctx.stroke();
-        }
-
-        function drawEvent() {
+        // ========== OSO Y CONEJO 2 VECES MÁS GRANDES ==========
+        function drawBearAndRabbit() {
             if (!specialEventActive) return;
-            const alpha = eventTimer < 15 ? eventTimer / 15 : 1;
+            let alpha = eventTimer < 20 ? eventTimer / 20 : 1;
             ctx.globalAlpha = alpha;
 
-            // Oso
-            if (images.bear) {
-                ctx.drawImage(images.bear, 680, CH - 170, 160, 200);
-            }
-            // Conejo
-            if (images.rabbit) {
-                ctx.drawImage(images.rabbit, 840, CH - 160, 130, 150);
-            }
+            // OSO (2x tamaño: base original era ~80x100, ahora 160x200)
+            ctx.save();
+            ctx.shadowBlur = 6;
+            const bearX = 680;
+            const bearY = CH-210;
+            ctx.fillStyle = '#a57248';
+            ctx.beginPath();
+            ctx.ellipse(bearX+80, bearY+60, 70, 85, 0, 0, Math.PI*2);
+            ctx.fill();
+            ctx.fillStyle = '#c99464';
+            ctx.beginPath();
+            ctx.ellipse(bearX+50, bearY+30, 48, 52, 0, 0, Math.PI*2);
+            ctx.fill();
+            ctx.fillStyle = '#8b5a36';
+            ctx.beginPath();
+            ctx.ellipse(bearX+25, bearY-5, 28, 32, 0, 0, Math.PI*2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.ellipse(bearX+105, bearY-5, 28, 32, 0, 0, Math.PI*2);
+            ctx.fill();
+            ctx.fillStyle = '#f7d9b0';
+            ctx.beginPath();
+            ctx.ellipse(bearX+50, bearY+18, 24, 28, 0, 0, Math.PI*2);
+            ctx.fill();
+            ctx.fillStyle = '#34200c';
+            ctx.beginPath();
+            ctx.arc(bearX+40, bearY+12, 5, 0, Math.PI*2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(bearX+75, bearY+12, 5, 0, Math.PI*2);
+            ctx.fill();
+            ctx.fillStyle = "#7a4a2a";
+            ctx.beginPath();
+            ctx.ellipse(bearX+56, bearY+32, 16, 10, 0, 0, Math.PI*2);
+            ctx.fill();
+            // Mano saludando
+            ctx.fillStyle = '#b87a48';
+            ctx.beginPath();
+            ctx.ellipse(bearX+95, bearY+10, 22, 16, -0.8, 0, Math.PI*2);
+            ctx.fill();
 
-            // Texto de celebración
-            ctx.font = "bold 28px 'Comic Neue', cursive";
-            ctx.fillStyle = '#ffffff';
-            ctx.shadowBlur = 10;
-            ctx.shadowColor = 'black';
-            ctx.fillText("🎉 ¡HOLA AMIGO! 🎉", 500, CH - 200);
+            // CONEJO (2x tamaño)
+            const rabbitX = 850;
+            const rabbitY = CH-195;
+            ctx.fillStyle = '#ddba8a';
+            ctx.beginPath();
+            ctx.ellipse(rabbitX+50, rabbitY+55, 45, 60, 0, 0, Math.PI*2);
+            ctx.fill();
+            ctx.fillStyle = '#f3e2c0';
+            ctx.beginPath();
+            ctx.ellipse(rabbitX+38, rabbitY+24, 32, 38, 0, 0, Math.PI*2);
+            ctx.fill();
+            ctx.fillStyle = '#c69862';
+            ctx.beginPath();
+            ctx.ellipse(rabbitX+24, rabbitY-15, 14, 52, -0.2, 0, Math.PI*2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.ellipse(rabbitX+58, rabbitY-12, 14, 56, 0.15, 0, Math.PI*2);
+            ctx.fill();
+            ctx.fillStyle = "#ffecd6";
+            ctx.beginPath();
+            ctx.ellipse(rabbitX+36, rabbitY+16, 20, 24, 0, 0, Math.PI*2);
+            ctx.fill();
+            ctx.fillStyle = "#422a14";
+            ctx.beginPath();
+            ctx.arc(rabbitX+30, rabbitY+10, 4, 0, Math.PI*2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(rabbitX+48, rabbitY+10, 4, 0, Math.PI*2);
+            ctx.fill();
+            ctx.fillStyle = "#f0985c";
+            ctx.beginPath();
+            ctx.ellipse(rabbitX+38, rabbitY+24, 7, 5, 0, 0, Math.PI*2);
+            ctx.fill();
+            // Bigotes
+            ctx.beginPath();
+            ctx.moveTo(rabbitX+20, rabbitY+22);
+            ctx.lineTo(rabbitX+6, rabbitY+18);
+            ctx.lineTo(rabbitX+8, rabbitY+26);
+            ctx.strokeStyle = "#5a3e26";
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(rabbitX+55, rabbitY+22);
+            ctx.lineTo(rabbitX+70, rabbitY+18);
+            ctx.lineTo(rabbitX+68, rabbitY+26);
+            ctx.stroke();
+            // Pata saludando
+            ctx.fillStyle = '#eabc84';
+            ctx.beginPath();
+            ctx.ellipse(rabbitX+72, rabbitY+18, 15, 12, 0.5, 0, Math.PI*2);
+            ctx.fill();
+
+            ctx.restore();
+            ctx.font = "bold 34px 'Comic Neue'";
+            ctx.fillStyle = "#ffffff";
+            ctx.shadowBlur = 8;
+            ctx.fillText("🎉 ¡HOLA AMIGO! 🎉", 430, CH-240);
             ctx.shadowBlur = 0;
             ctx.globalAlpha = 1;
-
-            eventTimer--;
-            if (eventTimer <= 0) specialEventActive = false;
         }
 
-        // ---------- ACTUALIZACIÓN DEL JUEGO ----------
+        // ========== ACTUALIZACIÓN DE FRUTAS (LANZADAS POR EL LOBO) ==========
         function updateWolfThrows() {
             if (wolfThrowCooldown <= 0 && !specialEventActive) {
                 wolfFruits.push({
-                    x: 90,
-                    y: CH - 350,
+                    x: 135,                // origen desde el lobo (más derecha)
+                    y: CH-390,
                     size: FRUIT_SIZE,
-                    vx: (Math.random() * 2 + 1.5) * (Math.random() > 0.5 ? 1 : -0.8),
-                    vy: 2.8
+                    vx: (Math.random() * 3 + 1.8) * (Math.random() > 0.5 ? 1 : -0.7),
+                    vy: 3.2
                 });
-                wolfThrowCooldown = 35;
+                wolfThrowCooldown = 38;
             } else {
                 wolfThrowCooldown--;
             }
-
-            for (let i = 0; i < wolfFruits.length; i++) {
-                const f = wolfFruits[i];
+            for (let i=0; i<wolfFruits.length; i++) {
+                let f = wolfFruits[i];
                 f.x += f.vx;
                 f.y += f.vy;
-                if (f.y > CH + 80 || f.x < -50 || f.x > CW + 80) {
-                    wolfFruits.splice(i, 1);
+                if (f.y > CH + 150 || f.x < -150 || f.x > CW + 150) {
+                    wolfFruits.splice(i,1);
                     i--;
                 }
             }
         }
 
         function checkFruitCollection() {
-            for (let i = 0; i < wolfFruits.length; i++) {
-                const f = wolfFruits[i];
+            for (let i=0; i<wolfFruits.length; i++) {
+                let f = wolfFruits[i];
                 if (heroX < f.x + FRUIT_SIZE && heroX + heroW > f.x &&
-                    groundY < f.y + FRUIT_SIZE && groundY + heroH > f.y) {
-                    wolfFruits.splice(i, 1);
+                    heroY < f.y + FRUIT_SIZE && heroY + heroH > f.y) {
+                    wolfFruits.splice(i,1);
                     if (!specialEventActive) {
                         fruitsCollected = Math.min(fruitsCollected + 1, 5);
                         document.getElementById('fruitCounter').innerText = fruitsCollected;
-                        spawnParticles(f.x + FRUIT_SIZE/2, f.y + FRUIT_SIZE/2, 8, '#ffd700');
+                        // partículas de recogida
+                        for(let p=0;p<12;p++) particles.push({
+                            x: f.x+FRUIT_SIZE/2, y: f.y+FRUIT_SIZE/2,
+                            vx: (Math.random()-0.5)*7, vy: (Math.random()-1)* -5,
+                            life: 1, decay: 0.025, size: 4+Math.random()*6, color: '#ffb347'
+                        });
                         if (fruitsCollected === 5) {
                             specialEventActive = true;
                             eventTimer = EVENT_DURATION;
                             fruitsCollected = 0;
                             document.getElementById('fruitCounter').innerText = '0';
-                            // Lluvia de partículas en celebración
-                            for (let j = 0; j < 30; j++) {
+                            for (let j=0;j<40;j++) {
                                 setTimeout(() => {
-                                    spawnParticles(750 + Math.random()*200, CH-200, 5, '#ff6b6b');
-                                }, j * 50);
+                                    for(let k=0;k<5;k++) particles.push({
+                                        x: 750+Math.random()*300, y: CH-180+Math.random()*100,
+                                        vx: (Math.random()-0.5)*8, vy: (Math.random()-2)* -4,
+                                        life: 1, decay: 0.02, size: 5+Math.random()*8, color: '#ffaa44'
+                                    });
+                                }, j*30);
                             }
                         }
                     }
@@ -406,21 +600,50 @@
             }
         }
 
+        // ========== MOVIMIENTO Y PARTÍCULAS ==========
         function updateMovement() {
-            if (leftPressed && heroX > 10) heroX -= moveSpeed;
-            if (rightPressed && heroX + heroW < CW - 10) heroX += moveSpeed;
-            heroX = Math.min(Math.max(heroX, 5), CW - heroW - 5);
+            if (leftPressed && heroX > 12) heroX -= moveSpeed;
+            if (rightPressed && heroX + heroW < CW - 12) heroX += moveSpeed;
+            heroX = Math.min(Math.max(heroX, 8), CW - heroW - 8);
         }
 
+        function updateParticles() {
+            for (let i=particles.length-1; i>=0; i--) {
+                let p = particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.vy += 0.2;
+                p.life -= p.decay;
+                if (p.life <= 0) particles.splice(i,1);
+            }
+        }
+        function drawParticles() {
+            for (let p of particles) {
+                ctx.globalAlpha = p.life;
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI*2);
+                ctx.fill();
+            }
+            ctx.globalAlpha = 1;
+        }
+
+        // ========== RENDER COMPLETO ==========
         function render() {
-            drawBackground();
-            drawWolf();
-            for (let f of wolfFruits) drawFruit(f.x, f.y);
+            drawMasterBackground();
+            drawWolfTree();
+            drawWolfOnTree();
+            for (let f of wolfFruits) drawGiantFruit(f.x, f.y);
             drawParticles();
             drawHero();
-            drawEvent();
+            drawBearAndRabbit();
+            if (specialEventActive) {
+                eventTimer--;
+                if (eventTimer <= 0) specialEventActive = false;
+            }
         }
 
+        // ========== BUCLE PRINCIPAL ==========
         function gameLoop() {
             if (!specialEventActive) updateMovement();
             updateWolfThrows();
@@ -430,27 +653,40 @@
             requestAnimationFrame(gameLoop);
         }
 
+        // ========== REINICIO ==========
         function resetGame() {
             wolfFruits = [];
             fruitsCollected = 0;
-            document.getElementById('fruitCounter').innerText = '0';
+            document.getElementById('fruitCounter').innerText = "0";
             specialEventActive = false;
             eventTimer = 0;
             heroX = CW/2 - heroW/2;
-            wolfThrowCooldown = 10;
+            wolfThrowCooldown = 5;
             particles = [];
         }
 
-        // ---------- CONTROLES TÁCTILES Y TECLADO ----------
+        // ========== SUBIR FOTO (PROTAGONISTA COMPLETO) ==========
+        function loadUserPhoto(file) {
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    userPhoto = img;
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // ========== CONTROLES (TÁCTILES + TECLADO) ==========
         document.getElementById('btnLeft').addEventListener('pointerdown', (e) => { e.preventDefault(); leftPressed = true; });
         document.getElementById('btnLeft').addEventListener('pointerup', (e) => { e.preventDefault(); leftPressed = false; });
         document.getElementById('btnLeft').addEventListener('pointerleave', () => { leftPressed = false; });
-
         document.getElementById('btnRight').addEventListener('pointerdown', (e) => { e.preventDefault(); rightPressed = true; });
         document.getElementById('btnRight').addEventListener('pointerup', (e) => { e.preventDefault(); rightPressed = false; });
         document.getElementById('btnRight').addEventListener('pointerleave', () => { rightPressed = false; });
 
-        // Teclado para PC
         window.addEventListener('keydown', (e) => {
             if (e.key === 'ArrowLeft') { leftPressed = true; e.preventDefault(); }
             if (e.key === 'ArrowRight') { rightPressed = true; e.preventDefault(); }
@@ -460,23 +696,32 @@
             if (e.key === 'ArrowRight') rightPressed = false;
         });
 
-        // Subida de foto
-        document.getElementById('heroPhoto').addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = (ev) => {
-                const img = new Image();
-                img.onload = () => { heroImage = img; };
-                img.src = ev.target.result;
-            };
-            reader.readAsDataURL(file);
+        document.getElementById('heroPhoto').addEventListener('change', (e) => {
+            if (e.target.files[0]) loadUserPhoto(e.target.files[0]);
         });
-
         document.getElementById('resetBtn').addEventListener('click', resetGame);
 
-        // Iniciar la carga de imágenes
-        loadImages();
+        // Iniciar juego
+        resetGame();
+        gameLoop();
+
+        // Helper roundRect
+        if (!CanvasRenderingContext2D.prototype.roundRect) {
+            CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, r) {
+                if (w < 2*r) r = w/2;
+                if (h < 2*r) r = h/2;
+                this.moveTo(x+r, y);
+                this.lineTo(x+w-r, y);
+                this.quadraticCurveTo(x+w, y, x+w, y+r);
+                this.lineTo(x+w, y+h-r);
+                this.quadraticCurveTo(x+w, y+h, x+w-r, y+h);
+                this.lineTo(x+r, y+h);
+                this.quadraticCurveTo(x, y+h, x, y+h-r);
+                this.lineTo(x, y+r);
+                this.quadraticCurveTo(x, y, x+r, y);
+                return this;
+            };
+        }
     })();
 </script>
 </body>
