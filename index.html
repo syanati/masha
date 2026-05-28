@@ -170,10 +170,10 @@
         const FRUIT_SIZE = 120;
 
         // Oso y Conejo: 2 veces más grandes (tamaño original aprox 80x100 -> 160x200)
-        const BEAR_W = 160;
-        const BEAR_H = 200;
-        const RABBIT_W = 130;
-        const RABBIT_H = 150;
+        const BEAR_W = 260;
+        const BEAR_H = 300;
+        const RABBIT_W = 230;
+        const RABBIT_H = 250;
 
         // ========== MOVIMIENTO ==========
         let leftPressed = false;
@@ -264,7 +264,7 @@
         function drawWolf() {
             if (images.wolf && images.wolf.complete) {
                 // Lobo más arriba y a la derecha: posición x=95, y=CH-350 (ajustable)
-                ctx.drawImage(images.wolf, 95, CH - 350, 140, 220);
+                ctx.drawImage(images.wolf, 195, CH - 450, 140, 220);
             }
         }
 
