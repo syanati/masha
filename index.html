@@ -27,7 +27,6 @@
             font-family: 'Segoe UI', 'Comic Neue', cursive;
             height: 100dvh;
         }
-
         .rotate-warning {
             display: none;
             position: fixed;
@@ -46,7 +45,6 @@
             .rotate-warning { display: flex; }
             .game-wrapper { display: none; }
         }
-
         .game-wrapper {
             position: relative;
             width: 100%;
@@ -60,7 +58,6 @@
             height: 100%;
             touch-action: none;
         }
-
         .ui-top-left {
             position: absolute;
             top: 1.5vmin;
@@ -144,7 +141,6 @@
 
     <div class="game-wrapper">
         <canvas id="gameCanvas"></canvas>
-
         <div class="ui-top-left">
             <button class="fullscreen-btn" id="fullscreenBtn">⛶ Pantalla completa</button>
         </div>
@@ -163,24 +159,26 @@
             const WORLD_W = 1100;
             const WORLD_H = 620;
 
-            // ⚙️ CONFIGURACIÓN: número de frutas para activar el evento especial
-            const FRUTAS_OBJETIVO = 10;   // Cambia este valor al que quieras (10, 15, 20...)
+            // ===================== CONFIGURACIÓN =====================
+            const FRUTAS_OBJETIVO = 100;          // frutas necesarias para evento especial
+            const MOVE_SPEED = 9.8;              // velocidad de Masha
+            const FRUIT_SPEED_MULTIPLIER = 1.6;  // multiplicador de velocidad de frutas (1.0 normal, >1 más rápido)
+            const THROW_INTERVAL = 28;           // frames entre lanzamientos del lobo (menor = más frecuente)
+            // =========================================================
+
             document.getElementById('totalFruits').textContent = FRUTAS_OBJETIVO;
 
             function resizeCanvas() {
                 const displayW = window.innerWidth;
                 const displayH = window.innerHeight;
                 const dpr = window.devicePixelRatio || 1;
-
                 canvas.width = displayW * dpr;
                 canvas.height = displayH * dpr;
-
                 const scaleX = displayW / WORLD_W;
                 const scaleY = displayH / WORLD_H;
                 const scale = Math.max(scaleX, scaleY);
                 const offsetX = (displayW - WORLD_W * scale) / 2;
                 const offsetY = (displayH - WORLD_H * scale) / 2;
-
                 ctx.setTransform(1, 0, 0, 1, 0, 0);
                 ctx.setTransform(dpr * scale, 0, 0, dpr * scale, dpr * offsetX, dpr * offsetY);
             }
@@ -202,7 +200,6 @@
 
             let leftPressed = false;
             let rightPressed = false;
-            const moveSpeed = 6.8;
 
             let wolfFruits = [];
             let fruitsCollected = 0;
@@ -212,23 +209,13 @@
             const EVENT_DURATION = 100;
             let particles = [];
 
-            const images = {
-                background: null,
-                wolf: null,
-                bear: null,
-                rabbit: null,
-                fruit: null,
-                heroDefault: null
-            };
+            const images = { background: null, wolf: null, bear: null, rabbit: null, fruit: null, heroDefault: null };
             let imagesLoaded = 0;
             const totalImages = 6;
 
             function imageLoaded() {
                 imagesLoaded++;
-                if (imagesLoaded === totalImages) {
-                    resetGame();
-                    gameLoop();
-                }
+                if (imagesLoaded === totalImages) { resetGame(); gameLoop(); }
             }
 
             images.background = new Image();
@@ -264,35 +251,24 @@
             let currentHeroImage = images.heroDefault;
 
             function drawBackground() {
-                if (images.background && images.background.complete) {
-                    ctx.drawImage(images.background, 0, 0, WORLD_W, WORLD_H);
-                } else {
-                    ctx.fillStyle = '#6f9e45';
-                    ctx.fillRect(0, 0, WORLD_W, WORLD_H);
-                }
+                if (images.background?.complete) ctx.drawImage(images.background, 0, 0, WORLD_W, WORLD_H);
+                else { ctx.fillStyle = '#6f9e45'; ctx.fillRect(0, 0, WORLD_W, WORLD_H); }
             }
-
             function drawWolf() {
-                if (images.wolf && images.wolf.complete) {
-                    ctx.drawImage(images.wolf, 620, WORLD_H - 600, 140, 220);
-                }
+                if (images.wolf?.complete) ctx.drawImage(images.wolf, 620, WORLD_H - 600, 140, 220);
             }
-
             function drawGiantFruit(x, y) {
-                if (images.fruit && images.fruit.complete) {
-                    ctx.drawImage(images.fruit, x, y, FRUIT_SIZE, FRUIT_SIZE);
-                } else {
+                if (images.fruit?.complete) ctx.drawImage(images.fruit, x, y, FRUIT_SIZE, FRUIT_SIZE);
+                else {
                     ctx.fillStyle = '#e6321c';
                     ctx.beginPath();
                     ctx.ellipse(x+FRUIT_SIZE/2, y+FRUIT_SIZE/2, FRUIT_SIZE/2-5, FRUIT_SIZE/2-3, 0, 0, Math.PI*2);
                     ctx.fill();
                 }
             }
-
             function drawHero() {
-                if (currentHeroImage && currentHeroImage.complete) {
-                    ctx.save();
-                    ctx.shadowBlur = 6;
+                if (currentHeroImage?.complete) {
+                    ctx.save(); ctx.shadowBlur = 6;
                     ctx.drawImage(currentHeroImage, heroX, heroY, heroW, heroH);
                     ctx.restore();
                 } else {
@@ -300,42 +276,36 @@
                     ctx.fillRect(heroX, heroY, heroW, heroH);
                 }
             }
-
             function drawBearAndRabbit() {
                 if (!specialEventActive) return;
-                let alpha = eventTimer < 20 ? eventTimer / 20 : 1;
+                const alpha = eventTimer < 20 ? eventTimer / 20 : 1;
                 ctx.globalAlpha = alpha;
-                if (images.bear && images.bear.complete) {
-                    ctx.drawImage(images.bear, 660, WORLD_H - 210, BEAR_W, BEAR_H);
-                }
-                if (images.rabbit && images.rabbit.complete) {
-                    ctx.drawImage(images.rabbit, 840, WORLD_H - 190, RABBIT_W, RABBIT_H);
-                }
+                if (images.bear?.complete) ctx.drawImage(images.bear, 660, WORLD_H - 210, BEAR_W, BEAR_H);
+                if (images.rabbit?.complete) ctx.drawImage(images.rabbit, 840, WORLD_H - 190, RABBIT_W, RABBIT_H);
                 ctx.font = "bold 34px 'Comic Neue'";
-                ctx.fillStyle = "#ffffff";
-                ctx.shadowBlur = 8;
+                ctx.fillStyle = "#ffffff"; ctx.shadowBlur = 8;
                 ctx.fillText("🎉 ¡HOLA AMIGO! 🎉", 400, WORLD_H - 220);
-                ctx.shadowBlur = 0;
-                ctx.globalAlpha = 1;
+                ctx.shadowBlur = 0; ctx.globalAlpha = 1;
             }
 
             function updateWolfThrows() {
                 if (wolfThrowCooldown <= 0 && !specialEventActive) {
                     const loboX = 620 + 70;
                     const loboY = WORLD_H - 600 + 110;
+                    const dir = Math.random() > 0.5 ? 1 : -0.7;
+                    const baseVX = (Math.random() * 3 + 1.8);
+                    const baseVY = 3.2;
                     wolfFruits.push({
-                        x: loboX,
-                        y: loboY,
-                        size: FRUIT_SIZE,
-                        vx: (Math.random() * 3 + 1.8) * (Math.random() > 0.5 ? 1 : -0.7),
-                        vy: 3.2
+                        x: loboX, y: loboY, size: FRUIT_SIZE,
+                        vx: baseVX * dir * FRUIT_SPEED_MULTIPLIER,
+                        vy: baseVY * FRUIT_SPEED_MULTIPLIER
                     });
-                    wolfThrowCooldown = 38;
+                    wolfThrowCooldown = THROW_INTERVAL;
                 } else {
                     wolfThrowCooldown--;
                 }
                 for (let i = 0; i < wolfFruits.length; i++) {
-                    let f = wolfFruits[i];
+                    const f = wolfFruits[i];
                     f.x += f.vx;
                     f.y += f.vy;
                     if (f.y > WORLD_H + 150 || f.x < -150 || f.x > WORLD_W + 150) {
@@ -347,7 +317,7 @@
 
             function checkFruitCollection() {
                 for (let i = 0; i < wolfFruits.length; i++) {
-                    let f = wolfFruits[i];
+                    const f = wolfFruits[i];
                     if (heroX < f.x + FRUIT_SIZE && heroX + heroW > f.x &&
                         heroY < f.y + FRUIT_SIZE && heroY + heroH > f.y) {
                         wolfFruits.splice(i,1);
@@ -381,24 +351,22 @@
             }
 
             function updateMovement() {
-                if (leftPressed && heroX > 12) heroX -= moveSpeed;
-                if (rightPressed && heroX + heroW < WORLD_W - 12) heroX += moveSpeed;
+                if (leftPressed && heroX > 12) heroX -= MOVE_SPEED;
+                if (rightPressed && heroX + heroW < WORLD_W - 12) heroX += MOVE_SPEED;
                 heroX = Math.min(Math.max(heroX, 8), WORLD_W - heroW - 8);
             }
 
             function updateParticles() {
                 for (let i=particles.length-1; i>=0; i--) {
-                    let p = particles[i];
-                    p.x += p.vx;
-                    p.y += p.vy;
+                    const p = particles[i];
+                    p.x += p.vx; p.y += p.vy;
                     p.vy += 0.2;
                     p.life -= p.decay;
                     if (p.life <= 0) particles.splice(i,1);
                 }
             }
-
             function drawParticles() {
-                for (let p of particles) {
+                for (const p of particles) {
                     ctx.globalAlpha = p.life;
                     ctx.fillStyle = p.color;
                     ctx.beginPath();
@@ -411,7 +379,7 @@
             function render() {
                 drawBackground();
                 drawWolf();
-                for (let f of wolfFruits) drawGiantFruit(f.x, f.y);
+                for (const f of wolfFruits) drawGiantFruit(f.x, f.y);
                 drawParticles();
                 drawHero();
                 drawBearAndRabbit();
@@ -453,42 +421,33 @@
             }
 
             // Controles táctiles
-            let touchStartX = null;
-            let isDragging = false;
-            
+            let touchStartX = null, isDragging = false;
             canvas.addEventListener('touchstart', (e) => {
                 e.preventDefault();
                 const rect = canvas.getBoundingClientRect();
-                const touch = e.touches[0];
-                touchStartX = (touch.clientX - rect.left) * (WORLD_W / rect.width);
+                touchStartX = (e.touches[0].clientX - rect.left) * (WORLD_W / rect.width);
                 isDragging = true;
             });
-            
             canvas.addEventListener('touchmove', (e) => {
                 e.preventDefault();
                 if (!isDragging) return;
                 const rect = canvas.getBoundingClientRect();
-                const touch = e.touches[0];
-                let canvasX = (touch.clientX - rect.left) * (WORLD_W / rect.width);
-                let delta = canvasX - touchStartX;
+                const canvasX = (e.touches[0].clientX - rect.left) * (WORLD_W / rect.width);
+                const delta = canvasX - touchStartX;
                 if (Math.abs(delta) > 8) {
                     rightPressed = (delta > 0);
                     leftPressed = !rightPressed;
                     touchStartX = canvasX;
                 }
             });
-            
             canvas.addEventListener('touchend', (e) => {
                 e.preventDefault();
-                leftPressed = false;
-                rightPressed = false;
+                leftPressed = rightPressed = false;
                 isDragging = false;
             });
-            
             canvas.addEventListener('touchcancel', (e) => {
                 e.preventDefault();
-                leftPressed = false;
-                rightPressed = false;
+                leftPressed = rightPressed = false;
                 isDragging = false;
             });
 
@@ -505,13 +464,9 @@
                 if (e.target.files[0]) setUserPhoto(e.target.files[0]);
             });
             document.getElementById('resetBtn').addEventListener('click', resetGame);
-
             document.getElementById('fullscreenBtn').addEventListener('click', () => {
-                if (document.fullscreenElement) {
-                    document.exitFullscreen();
-                } else {
-                    document.documentElement.requestFullscreen();
-                }
+                if (document.fullscreenElement) document.exitFullscreen();
+                else document.documentElement.requestFullscreen();
             });
         })();
     </script>
