@@ -2,9 +2,8 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0, viewport-fit=cover">
-    <title>Masha y el Oso - Aventura Gigante</title>
-    <!-- Íconos y meta para móviles -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Masha y el Oso – Aventura Gigante</title>
     <link rel="icon" type="image/png" href="masha_default.png" sizes="any">
     <link rel="apple-touch-icon" href="masha_default.png">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -26,6 +25,8 @@
             overflow: hidden;
             background: #000;
             font-family: 'Segoe UI', 'Comic Neue', cursive;
+            /* Usamos altura dinámica (100dvh) en navegadores modernos */
+            height: 100dvh;
         }
 
         /* Aviso para forzar horizontal */
@@ -38,7 +39,7 @@
             z-index: 9999;
             justify-content: center;
             align-items: center;
-            font-size: 1.5rem;
+            font-size: clamp(1rem, 5vw, 1.8rem);
             text-align: center;
             flex-direction: column;
             gap: 20px;
@@ -52,42 +53,42 @@
             position: relative;
             width: 100%;
             height: 100%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            /* Ocupa toda la ventana */
         }
         canvas {
             display: block;
+            position: absolute;
+            top: 0; left: 0;
             width: 100%;
             height: 100%;
             touch-action: none;
         }
 
-        /* Controles superpuestos */
+        /* Controles superpuestos con unidades responsivas */
         .ui-top-left {
             position: absolute;
-            top: 12px;
-            left: 12px;
+            top: 1.5vmin;
+            left: 1.5vmin;
             z-index: 10;
         }
         .ui-top-right {
             position: absolute;
-            top: 12px;
-            right: 12px;
+            top: 1.5vmin;
+            right: 1.5vmin;
             z-index: 10;
             display: flex;
             flex-direction: column;
             align-items: flex-end;
-            gap: 8px;
+            gap: 1.5vmin;
         }
         .score-badge {
             background: rgba(254,245,224,0.9);
-            padding: 8px 18px;
-            border-radius: 30px;
-            font-size: 1.3rem;
+            padding: 1.2vmin 3vmin;
+            border-radius: 3vmin;
+            font-size: clamp(1rem, 4vmin, 2rem);
             font-weight: bold;
             color: #c73f1e;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+            box-shadow: 0 0.5vmin 1.5vmin rgba(0,0,0,0.25);
             backdrop-filter: blur(4px);
         }
         .btn-icon {
@@ -95,16 +96,16 @@
             border: none;
             color: #2d1b0c;
             font-weight: bold;
-            padding: 10px 20px;
-            border-radius: 30px;
-            font-size: 1rem;
+            padding: 1.5vmin 3vmin;
+            border-radius: 3vmin;
+            font-size: clamp(0.9rem, 3.5vmin, 1.4rem);
             cursor: pointer;
-            box-shadow: 0 4px 0 #b85e1a;
+            box-shadow: 0 0.5vmin 0 #b85e1a;
             backdrop-filter: blur(4px);
             touch-action: manipulation;
-            display: inline-block;
             text-decoration: none;
             line-height: 1.2;
+            white-space: nowrap;
         }
         .btn-icon:active {
             transform: translateY(3px);
@@ -112,13 +113,13 @@
         }
         .upload-label {
             background: rgba(243,165,70,0.9);
-            padding: 10px 20px;
-            border-radius: 30px;
+            padding: 1.5vmin 3vmin;
+            border-radius: 3vmin;
             font-weight: bold;
             cursor: pointer;
             color: #2d1b0c;
-            font-size: 1rem;
-            box-shadow: 0 4px 0 #b85e1a;
+            font-size: clamp(0.9rem, 3.5vmin, 1.4rem);
+            box-shadow: 0 0.5vmin 0 #b85e1a;
             backdrop-filter: blur(4px);
             display: inline-block;
             touch-action: manipulation;
@@ -134,9 +135,9 @@
             background: rgba(0,0,0,0.5);
             color: white;
             border: 1px solid rgba(255,255,255,0.6);
-            padding: 8px 14px;
-            border-radius: 20px;
-            font-size: 0.9rem;
+            padding: 1.2vmin 2.5vmin;
+            border-radius: 2vmin;
+            font-size: clamp(0.8rem, 3vmin, 1.2rem);
             cursor: pointer;
             backdrop-filter: blur(4px);
         }
@@ -164,36 +165,39 @@
 
     <script>
         (function(){
-            // ========== CONFIGURACIÓN DEL CANVAS ==========
             const canvas = document.getElementById('gameCanvas');
             const ctx = canvas.getContext('2d');
             const WORLD_W = 1100;
             const WORLD_H = 620;
 
-            // Redimensionamiento para ocupar toda la ventana (modo cover)
+            // Redimensionamiento adaptable automático
             function resizeCanvas() {
-                const container = document.querySelector('.game-wrapper');
-                const rect = container.getBoundingClientRect();
-                const displayW = rect.width;
-                const displayH = rect.height;
+                const displayW = window.innerWidth;
+                const displayH = window.innerHeight;
                 const dpr = window.devicePixelRatio || 1;
 
+                // Establecemos el tamaño real del canvas (resolución física)
                 canvas.width = displayW * dpr;
                 canvas.height = displayH * dpr;
-                canvas.style.width = displayW + 'px';
-                canvas.style.height = displayH + 'px';
+                // El CSS ya lo pone al 100% del contenedor, no tocamos style
 
-                // Escalamos para que el contenido lógico (1100x620) cubra todo el área
+                // Escalamos el contexto para que el mundo lógico (1100x620) cubra toda la pantalla
                 const scaleX = displayW / WORLD_W;
                 const scaleY = displayH / WORLD_H;
-                const scale = Math.max(scaleX, scaleY); // cover
+                const scale = Math.max(scaleX, scaleY); // cover: cubre todo sin barras
                 const offsetX = (displayW - WORLD_W * scale) / 2;
                 const offsetY = (displayH - WORLD_H * scale) / 2;
 
                 ctx.setTransform(1, 0, 0, 1, 0, 0);
                 ctx.setTransform(dpr * scale, 0, 0, dpr * scale, dpr * offsetX, dpr * offsetY);
             }
+
+            // Escucha cambios de orientación y redimensionamiento
             window.addEventListener('resize', resizeCanvas);
+            window.addEventListener('orientationchange', () => {
+                // Pequeño retardo para que el navegador actualice las dimensiones
+                setTimeout(resizeCanvas, 50);
+            });
             resizeCanvas();
 
             // ========== TAMAÑOS DUPLICADOS (2X) ==========
@@ -374,7 +378,7 @@
                                 vx: (Math.random()-0.5)*7, vy: (Math.random()-1)* -5,
                                 life: 1, decay: 0.025, size: 4+Math.random()*6, color: '#ffb347'
                             });
-                            if (fruitsCollected === 5) {
+                            if (fruitsCollected === 10) {
                                 specialEventActive = true;
                                 eventTimer = EVENT_DURATION;
                                 fruitsCollected = 0;
@@ -539,9 +543,6 @@
                     document.documentElement.requestFullscreen();
                 }
             });
-
-            // Quitar referencias a los viejos botones de movimiento (ya no existen en HTML)
-            // No es necesario eliminarlos del JS porque no se usan, pero por limpieza no los incluimos.
         })();
     </script>
 </body>
