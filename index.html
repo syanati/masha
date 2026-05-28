@@ -32,7 +32,7 @@
         .loading-overlay {
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.85);
+            background: rgba(0,0,0,0.9);
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -77,20 +77,30 @@
             box-shadow: 0 1px 0 #b85e1a;
         }
 
-        /* Pequeño aviso si no se puede girar (sutil) */
-        .rotate-hint {
+        /* Aviso de orientación */
+        .rotate-warning {
             display: none;
-            position: absolute;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(0,0,0,0.6);
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.9);
             color: white;
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-size: 0.9rem;
-            z-index: 20;
-            pointer-events: none;
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+            font-size: clamp(1.5rem, 6vw, 2.5rem);
+            text-align: center;
+            flex-direction: column;
+            gap: 30px;
+            pointer-events: auto;
+        }
+        .rotate-warning img {
+            width: 80px;
+            height: 80px;
+            animation: rotate 1.5s infinite;
+        }
+        @keyframes rotate {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(90deg); }
         }
 
         .game-wrapper {
@@ -184,18 +194,22 @@
     </style>
 </head>
 <body>
-    <!-- Overlay de carga -->
+    <!-- Overlay de carga (también controla orientación) -->
     <div class="loading-overlay" id="loadingOverlay">
-        <div>Cargando el bosque...</div>
-        <div class="loading-bar-container">
+        <div id="loadingText">Cargando el bosque...</div>
+        <div class="loading-bar-container" id="barContainer">
             <div class="loading-bar" id="loadingBar"></div>
         </div>
         <button class="start-button" id="startButton">🎮 Toca para jugar</button>
+        <div class="rotate-warning" id="rotateWarning" style="display:none;">
+            <div>📱 Por favor, gira tu dispositivo</div>
+            <div style="font-size:3rem;">🔄</div>
+            <div>para disfrutar de la aventura</div>
+        </div>
     </div>
 
-    <div class="game-wrapper">
+    <div class="game-wrapper" id="gameWrapper">
         <canvas id="gameCanvas"></canvas>
-        <div class="rotate-hint" id="rotateHint">📱 Gira tu dispositivo para mejor experiencia</div>
         <div class="ui-top-left">
             <button class="fullscreen-btn" id="fullscreenBtn">⛶ Pantalla completa</button>
         </div>
@@ -215,7 +229,7 @@
             const WORLD_H = 620;
 
             // ===================== CONFIGURACIÓN =====================
-            const FRUTAS_OBJETIVO = 10;
+            const FRUTAS_OBJETIVO = 30;
             const MOVE_SPEED = 16.8;
             const FRUIT_SPEED_MULTIPLIER = 1.6;
             const THROW_INTERVAL = 28;
@@ -223,22 +237,70 @@
 
             document.getElementById('totalFruits').textContent = FRUTAS_OBJETIVO;
 
-            // ---------- GESTIÓN DE CARGA ----------
+            // ---------- GESTIÓN DE CARGA Y ORIENTACIÓN ----------
             const totalAssets = 6 + 5; // 6 imágenes + 5 audios
             let assetsLoaded = 0;
             const loadingBar = document.getElementById('loadingBar');
             const startButton = document.getElementById('startButton');
             const loadingOverlay = document.getElementById('loadingOverlay');
+            const loadingText = document.getElementById('loadingText');
+            const barContainer = document.getElementById('barContainer');
+            const rotateWarning = document.getElementById('rotateWarning');
+            let loadComplete = false;
+
+            function updateOrientationUI() {
+                const isPortrait = window.innerWidth < window.innerHeight;
+                if (loadComplete) {
+                    if (isPortrait) {
+                        // Mostrar aviso de rotación en vez del botón jugar
+                        startButton.style.display = 'none';
+                        barContainer.style.display = 'none';
+                        loadingText.style.display = 'none';
+                        rotateWarning.style.display = 'flex';
+                    } else {
+                        // Mostrar botón jugar si está completo
+                        rotateWarning.style.display = 'none';
+                        loadingText.style.display = 'block';
+                        barContainer.style.display = 'none';
+                        startButton.style.display = 'block';
+                    }
+                } else {
+                    // Aún cargando, mostramos barra pero también el aviso si es portrait
+                    if (isPortrait) {
+                        rotateWarning.style.display = 'flex';
+                        loadingText.style.display = 'none';
+                        barContainer.style.display = 'none';
+                    } else {
+                        rotateWarning.style.display = 'none';
+                        loadingText.style.display = 'block';
+                        barContainer.style.display = 'block';
+                    }
+                }
+            }
 
             function assetLoaded() {
                 assetsLoaded++;
                 const percent = Math.floor((assetsLoaded / totalAssets) * 100);
                 loadingBar.style.width = percent + '%';
                 if (assetsLoaded === totalAssets) {
-                    startButton.style.display = 'block';
-                    loadingBar.parentElement.style.display = 'none';
+                    loadComplete = true;
+                    updateOrientationUI();
                 }
             }
+
+            // Escuchar cambios de orientación mientras carga o después
+            window.addEventListener('resize', () => {
+                resizeCanvas();
+                if (!audioReady) { // si todavía estamos en la pantalla de carga
+                    updateOrientationUI();
+                }
+            });
+            window.addEventListener('orientationchange', () => {
+                setTimeout(() => {
+                    resizeCanvas();
+                    if (!audioReady) updateOrientationUI();
+                }, 50);
+            });
 
             // ---------- AUDIO ----------
             let audioCtx = null;
@@ -285,9 +347,19 @@
             }
 
             function startGameAfterLoad() {
+                // Forzar orientación horizontal al iniciar
+                const isPortrait = window.innerWidth < window.innerHeight;
+                if (isPortrait) {
+                    // Si aún está en vertical, mostrar advertencia y no iniciar
+                    updateOrientationUI();
+                    return;
+                }
+
                 if (audioCtx) {
                     if (audioCtx.state === 'suspended') {
-                        audioCtx.resume();
+                        audioCtx.resume().then(() => {
+                            console.log('AudioContext resumed');
+                        }).catch(e => console.warn('resume failed', e));
                     }
                     if (!musicGain) {
                         musicGain = audioCtx.createGain();
@@ -299,10 +371,13 @@
                     }
                 }
                 audioReady = true;
+                // Ocultar overlay de carga
                 loadingOverlay.style.opacity = '0';
                 setTimeout(() => {
                     loadingOverlay.style.display = 'none';
                 }, 300);
+                // Mostrar canvas y empezar juego
+                canvas.style.display = 'block';
                 resetGame();
                 gameLoop();
             }
@@ -324,6 +399,10 @@
 
             function playSound(name, volume = 0.7) {
                 if (!audioReady || !audioCtx || !audioBuffers[name]) return;
+                // Pequeño truco para asegurar que el contexto no esté suspendido
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
                 const source = audioCtx.createBufferSource();
                 const gainNode = audioCtx.createGain();
                 gainNode.gain.value = volume;
@@ -332,6 +411,9 @@
                 gainNode.connect(audioCtx.destination);
                 source.start();
             }
+
+            // Al iniciar, ocultar canvas hasta que se pulse jugar
+            canvas.style.display = 'none';
 
             function resizeCanvas() {
                 const displayW = window.innerWidth;
@@ -416,8 +498,12 @@
             let currentHeroImage = images.heroDefault;
 
             function drawBackground() {
-                if (images.background?.complete) ctx.drawImage(images.background, 0, 0, WORLD_W, WORLD_H);
-                else { ctx.fillStyle = '#6f9e45'; ctx.fillRect(0, 0, WORLD_W, WORLD_H); }
+                if (images.background?.complete) {
+                    ctx.drawImage(images.background, 0, 0, WORLD_W, WORLD_H);
+                } else {
+                    ctx.fillStyle = '#6f9e45';
+                    ctx.fillRect(0, 0, WORLD_W, WORLD_H);
+                }
             }
             function drawWolf() {
                 if (images.wolf?.complete) ctx.drawImage(images.wolf, 620, WORLD_H - 600, 140, 220);
@@ -561,6 +647,8 @@
             }
 
             function render() {
+                // Limpiar canvas completamente antes de cada frame
+                ctx.clearRect(0, 0, WORLD_W, WORLD_H);
                 drawBackground();
                 drawWolf();
                 for (const f of wolfFruits) drawGiantFruit(f.x, f.y);
@@ -592,6 +680,8 @@
                 wolfThrowCooldown = 5;
                 particles = [];
                 stepTimer = 0;
+                // Limpiar canvas al resetear
+                ctx.clearRect(0, 0, WORLD_W, WORLD_H);
             }
 
             function setUserPhoto(file) {
@@ -655,12 +745,10 @@
 
             // Botón Salir
             document.getElementById('exitBtn').addEventListener('click', () => {
-                // Intentar cerrar la ventana (funciona si fue abierta con window.open)
                 window.close();
-                // Fallback: redirigir a una página en blanco o a la misma URL (puedes poner tu URL de salida)
                 setTimeout(() => {
                     if (!window.closed) {
-                        window.location.href = 'about:blank'; // o 'https://tusitio.com/salir'
+                        window.location.href = 'about:blank';
                     }
                 }, 100);
             });
@@ -676,29 +764,17 @@
                     document.documentElement.requestFullscreen().then(() => {
                         if (screen.orientation && screen.orientation.lock) {
                             screen.orientation.lock('landscape').catch(() => {
-                                // Si no se puede bloquear, mostramos un aviso sutil
-                                document.getElementById('rotateHint').style.display = 'block';
-                                setTimeout(() => {
-                                    document.getElementById('rotateHint').style.display = 'none';
-                                }, 2000);
+                                updateOrientationUI();
                             });
                         }
                     }).catch(() => {
-                        // Fullscreen denegado, mostramos el hint
-                        document.getElementById('rotateHint').style.display = 'block';
-                        setTimeout(() => {
-                            document.getElementById('rotateHint').style.display = 'none';
-                        }, 2000);
+                        updateOrientationUI();
                     });
                 }
             });
 
-            // Al cargar, intentar bloquear orientación automáticamente si ya está en landscape
-            if (screen.orientation && screen.orientation.type && screen.orientation.type.startsWith('landscape')) {
-                // Ya está horizontal, podemos intentar bloquear sin pantalla completa? No siempre. Lo dejamos al botón.
-            }
-
-            // No iniciar automáticamente, esperamos al botón de inicio
+            // Al cargar, verificar orientación
+            updateOrientationUI();
         })();
     </script>
 </body>
