@@ -25,11 +25,9 @@
             overflow: hidden;
             background: #000;
             font-family: 'Segoe UI', 'Comic Neue', cursive;
-            /* Usamos altura dinámica (100dvh) en navegadores modernos */
             height: 100dvh;
         }
 
-        /* Aviso para forzar horizontal */
         .rotate-warning {
             display: none;
             position: fixed;
@@ -53,7 +51,6 @@
             position: relative;
             width: 100%;
             height: 100%;
-            /* Ocupa toda la ventana */
         }
         canvas {
             display: block;
@@ -64,7 +61,6 @@
             touch-action: none;
         }
 
-        /* Controles superpuestos con unidades responsivas */
         .ui-top-left {
             position: absolute;
             top: 1.5vmin;
@@ -128,9 +124,7 @@
             transform: translateY(3px);
             box-shadow: 0 1px 0 #b85e1a;
         }
-        #heroPhoto {
-            display: none;
-        }
+        #heroPhoto { display: none; }
         .fullscreen-btn {
             background: rgba(0,0,0,0.5);
             color: white;
@@ -151,12 +145,11 @@
     <div class="game-wrapper">
         <canvas id="gameCanvas"></canvas>
 
-        <!-- UI superpuesta -->
         <div class="ui-top-left">
             <button class="fullscreen-btn" id="fullscreenBtn">⛶ Pantalla completa</button>
         </div>
         <div class="ui-top-right">
-            <div class="score-badge">🍎 <span id="fruitCounter">0</span> / 5</div>
+            <div class="score-badge">🍎 <span id="fruitCounter">0</span> / <span id="totalFruits">10</span></div>
             <label class="upload-label" for="heroPhoto">📸 Subir mi foto</label>
             <input type="file" id="heroPhoto" accept="image/*">
             <button class="btn-icon" id="resetBtn">🌲 Reiniciar</button>
@@ -170,37 +163,31 @@
             const WORLD_W = 1100;
             const WORLD_H = 620;
 
-            // Redimensionamiento adaptable automático
+            // ⚙️ CONFIGURACIÓN: número de frutas para activar el evento especial
+            const FRUTAS_OBJETIVO = 10;   // Cambia este valor al que quieras (10, 15, 20...)
+            document.getElementById('totalFruits').textContent = FRUTAS_OBJETIVO;
+
             function resizeCanvas() {
                 const displayW = window.innerWidth;
                 const displayH = window.innerHeight;
                 const dpr = window.devicePixelRatio || 1;
 
-                // Establecemos el tamaño real del canvas (resolución física)
                 canvas.width = displayW * dpr;
                 canvas.height = displayH * dpr;
-                // El CSS ya lo pone al 100% del contenedor, no tocamos style
 
-                // Escalamos el contexto para que el mundo lógico (1100x620) cubra toda la pantalla
                 const scaleX = displayW / WORLD_W;
                 const scaleY = displayH / WORLD_H;
-                const scale = Math.max(scaleX, scaleY); // cover: cubre todo sin barras
+                const scale = Math.max(scaleX, scaleY);
                 const offsetX = (displayW - WORLD_W * scale) / 2;
                 const offsetY = (displayH - WORLD_H * scale) / 2;
 
                 ctx.setTransform(1, 0, 0, 1, 0, 0);
                 ctx.setTransform(dpr * scale, 0, 0, dpr * scale, dpr * offsetX, dpr * offsetY);
             }
-
-            // Escucha cambios de orientación y redimensionamiento
             window.addEventListener('resize', resizeCanvas);
-            window.addEventListener('orientationchange', () => {
-                // Pequeño retardo para que el navegador actualice las dimensiones
-                setTimeout(resizeCanvas, 50);
-            });
+            window.addEventListener('orientationchange', () => setTimeout(resizeCanvas, 50));
             resizeCanvas();
 
-            // ========== TAMAÑOS DUPLICADOS (2X) ==========
             const heroW = 180;
             const heroH = 200;
             let heroX = WORLD_W/2 - heroW/2;
@@ -208,18 +195,15 @@
             let heroY = groundY;
 
             const FRUIT_SIZE = 120;
-
             const BEAR_W = 260;
             const BEAR_H = 300;
             const RABBIT_W = 230;
             const RABBIT_H = 350;
 
-            // ========== MOVIMIENTO ==========
             let leftPressed = false;
             let rightPressed = false;
             const moveSpeed = 6.8;
 
-            // ========== ELEMENTOS DEL JUEGO ==========
             let wolfFruits = [];
             let fruitsCollected = 0;
             let wolfThrowCooldown = 0;
@@ -228,7 +212,6 @@
             const EVENT_DURATION = 100;
             let particles = [];
 
-            // ========== IMÁGENES ==========
             const images = {
                 background: null,
                 wolf: null,
@@ -280,7 +263,6 @@
 
             let currentHeroImage = images.heroDefault;
 
-            // ========== FUNCIONES DE DIBUJO ==========
             function drawBackground() {
                 if (images.background && images.background.complete) {
                     ctx.drawImage(images.background, 0, 0, WORLD_W, WORLD_H);
@@ -337,10 +319,9 @@
                 ctx.globalAlpha = 1;
             }
 
-            // ========== LÓGICA DEL JUEGO ==========
             function updateWolfThrows() {
                 if (wolfThrowCooldown <= 0 && !specialEventActive) {
-                    const loboX = 620 + 70;   // centro del lobo
+                    const loboX = 620 + 70;
                     const loboY = WORLD_H - 600 + 110;
                     wolfFruits.push({
                         x: loboX,
@@ -371,14 +352,14 @@
                         heroY < f.y + FRUIT_SIZE && heroY + heroH > f.y) {
                         wolfFruits.splice(i,1);
                         if (!specialEventActive) {
-                            fruitsCollected = Math.min(fruitsCollected + 1, 5);
+                            fruitsCollected = Math.min(fruitsCollected + 1, FRUTAS_OBJETIVO);
                             document.getElementById('fruitCounter').innerText = fruitsCollected;
                             for(let p=0;p<12;p++) particles.push({
                                 x: f.x+FRUIT_SIZE/2, y: f.y+FRUIT_SIZE/2,
                                 vx: (Math.random()-0.5)*7, vy: (Math.random()-1)* -5,
                                 life: 1, decay: 0.025, size: 4+Math.random()*6, color: '#ffb347'
                             });
-                            if (fruitsCollected === 10) {
+                            if (fruitsCollected === FRUTAS_OBJETIVO) {
                                 specialEventActive = true;
                                 eventTimer = EVENT_DURATION;
                                 fruitsCollected = 0;
@@ -465,15 +446,13 @@
                 const reader = new FileReader();
                 reader.onload = (e) => {
                     const img = new Image();
-                    img.onload = () => {
-                        currentHeroImage = img;
-                    };
+                    img.onload = () => { currentHeroImage = img; };
                     img.src = e.target.result;
                 };
                 reader.readAsDataURL(file);
             }
 
-            // ========== CONTROLES TÁCTILES (arrastre) ==========
+            // Controles táctiles
             let touchStartX = null;
             let isDragging = false;
             
@@ -481,8 +460,7 @@
                 e.preventDefault();
                 const rect = canvas.getBoundingClientRect();
                 const touch = e.touches[0];
-                const canvasX = (touch.clientX - rect.left) * (WORLD_W / rect.width);
-                touchStartX = canvasX;
+                touchStartX = (touch.clientX - rect.left) * (WORLD_W / rect.width);
                 isDragging = true;
             });
             
@@ -494,13 +472,8 @@
                 let canvasX = (touch.clientX - rect.left) * (WORLD_W / rect.width);
                 let delta = canvasX - touchStartX;
                 if (Math.abs(delta) > 8) {
-                    if (delta > 0) {
-                        rightPressed = true;
-                        leftPressed = false;
-                    } else {
-                        leftPressed = true;
-                        rightPressed = false;
-                    }
+                    rightPressed = (delta > 0);
+                    leftPressed = !rightPressed;
                     touchStartX = canvasX;
                 }
             });
@@ -519,7 +492,6 @@
                 isDragging = false;
             });
 
-            // Teclado PC
             window.addEventListener('keydown', (e) => {
                 if (e.key === 'ArrowLeft') { leftPressed = true; e.preventDefault(); }
                 if (e.key === 'ArrowRight') { rightPressed = true; e.preventDefault(); }
@@ -529,13 +501,11 @@
                 if (e.key === 'ArrowRight') rightPressed = false;
             });
 
-            // Botones de UI
             document.getElementById('heroPhoto').addEventListener('change', (e) => {
                 if (e.target.files[0]) setUserPhoto(e.target.files[0]);
             });
             document.getElementById('resetBtn').addEventListener('click', resetGame);
 
-            // Pantalla completa real
             document.getElementById('fullscreenBtn').addEventListener('click', () => {
                 if (document.fullscreenElement) {
                     document.exitFullscreen();
