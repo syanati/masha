@@ -49,6 +49,7 @@
             position: relative;
             width: 100%;
             height: 100%;
+            background: #000; /* color de las bandas si aparecen */
         }
         canvas {
             display: block;
@@ -160,10 +161,10 @@
             const WORLD_H = 620;
 
             // ===================== CONFIGURACIÓN =====================
-            const FRUTAS_OBJETIVO = 999;          // frutas necesarias para evento especial
-            const MOVE_SPEED = 42;              // velocidad de Masha
-            const FRUIT_SPEED_MULTIPLIER = 2.6;  // multiplicador de velocidad de frutas (1.0 normal, >1 más rápido)
-            const THROW_INTERVAL = 26;           // frames entre lanzamientos del lobo (menor = más frecuente)
+            const FRUTAS_OBJETIVO = 10;          // frutas necesarias para evento especial
+            const MOVE_SPEED = 6.8;              // velocidad de Masha
+            const FRUIT_SPEED_MULTIPLIER = 1.0;  // multiplicador de velocidad de frutas (1.0 normal, >1 más rápido)
+            const THROW_INTERVAL = 38;           // frames entre lanzamientos del lobo (menor = más frecuente)
             // =========================================================
 
             document.getElementById('totalFruits').textContent = FRUTAS_OBJETIVO;
@@ -172,13 +173,17 @@
                 const displayW = window.innerWidth;
                 const displayH = window.innerHeight;
                 const dpr = window.devicePixelRatio || 1;
+
                 canvas.width = displayW * dpr;
                 canvas.height = displayH * dpr;
+
+                // Escalamos para que el mundo ENTERO quepa sin recortes (contain)
                 const scaleX = displayW / WORLD_W;
                 const scaleY = displayH / WORLD_H;
-                const scale = Math.max(scaleX, scaleY);
+                const scale = Math.min(scaleX, scaleY);   // <-- min en lugar de max para no recortar
                 const offsetX = (displayW - WORLD_W * scale) / 2;
                 const offsetY = (displayH - WORLD_H * scale) / 2;
+
                 ctx.setTransform(1, 0, 0, 1, 0, 0);
                 ctx.setTransform(dpr * scale, 0, 0, dpr * scale, dpr * offsetX, dpr * offsetY);
             }
@@ -251,8 +256,12 @@
             let currentHeroImage = images.heroDefault;
 
             function drawBackground() {
-                if (images.background?.complete) ctx.drawImage(images.background, 0, 0, WORLD_W, WORLD_H);
-                else { ctx.fillStyle = '#6f9e45'; ctx.fillRect(0, 0, WORLD_W, WORLD_H); }
+                if (images.background?.complete) {
+                    ctx.drawImage(images.background, 0, 0, WORLD_W, WORLD_H);
+                } else {
+                    ctx.fillStyle = '#6f9e45';
+                    ctx.fillRect(0, 0, WORLD_W, WORLD_H);
+                }
             }
             function drawWolf() {
                 if (images.wolf?.complete) ctx.drawImage(images.wolf, 620, WORLD_H - 600, 140, 220);
@@ -425,14 +434,19 @@
             canvas.addEventListener('touchstart', (e) => {
                 e.preventDefault();
                 const rect = canvas.getBoundingClientRect();
-                touchStartX = (e.touches[0].clientX - rect.left) * (WORLD_W / rect.width);
+                // Ajustar coordenadas teniendo en cuenta el offset del mundo
+                const scale = Math.min(window.innerWidth / WORLD_W, window.innerHeight / WORLD_H);
+                const offsetX = (window.innerWidth - WORLD_W * scale) / 2;
+                touchStartX = (e.touches[0].clientX - rect.left - offsetX) / scale;
                 isDragging = true;
             });
             canvas.addEventListener('touchmove', (e) => {
                 e.preventDefault();
                 if (!isDragging) return;
                 const rect = canvas.getBoundingClientRect();
-                const canvasX = (e.touches[0].clientX - rect.left) * (WORLD_W / rect.width);
+                const scale = Math.min(window.innerWidth / WORLD_W, window.innerHeight / WORLD_H);
+                const offsetX = (window.innerWidth - WORLD_W * scale) / 2;
+                const canvasX = (e.touches[0].clientX - rect.left - offsetX) / scale;
                 const delta = canvasX - touchStartX;
                 if (Math.abs(delta) > 8) {
                     rightPressed = (delta > 0);
