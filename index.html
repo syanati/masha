@@ -43,8 +43,58 @@
         }
         @media (orientation: portrait) {
             .rotate-warning { display: flex; }
-            .game-wrapper { display: none; }
+            .game-wrapper, .loading-overlay { display: none; }
         }
+
+        /* Overlay de carga */
+        .loading-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+            color: white;
+            font-size: 1.5rem;
+            transition: opacity 0.3s;
+        }
+        .loading-bar-container {
+            width: 80%;
+            max-width: 400px;
+            height: 20px;
+            background: #333;
+            border-radius: 10px;
+            margin: 20px 0;
+            overflow: hidden;
+        }
+        .loading-bar {
+            width: 0%;
+            height: 100%;
+            background: #f3a546;
+            border-radius: 10px;
+            transition: width 0.2s;
+        }
+        .start-button {
+            display: none;
+            background: #f3a546;
+            border: none;
+            color: #2d1b0c;
+            font-weight: bold;
+            padding: 1.5vmin 4vmin;
+            border-radius: 5vmin;
+            font-size: clamp(1.2rem, 4vmin, 2rem);
+            cursor: pointer;
+            box-shadow: 0 0.5vmin 0 #b85e1a;
+            margin-top: 20px;
+            touch-action: manipulation;
+        }
+        .start-button:active {
+            transform: translateY(3px);
+            box-shadow: 0 1px 0 #b85e1a;
+        }
+
         .game-wrapper {
             position: relative;
             width: 100%;
@@ -140,6 +190,15 @@
         <div>📱 Gira tu dispositivo a modo horizontal para jugar</div>
     </div>
 
+    <!-- Overlay de carga -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div>Cargando el bosque...</div>
+        <div class="loading-bar-container">
+            <div class="loading-bar" id="loadingBar"></div>
+        </div>
+        <button class="start-button" id="startButton">🎮 Toca para jugar</button>
+    </div>
+
     <div class="game-wrapper">
         <canvas id="gameCanvas"></canvas>
         <div class="ui-top-left">
@@ -162,18 +221,36 @@
 
             // ===================== CONFIGURACIÓN =====================
             const FRUTAS_OBJETIVO = 30;
-            const MOVE_SPEED = 18.8;
+            const MOVE_SPEED = 16.8;
             const FRUIT_SPEED_MULTIPLIER = 1.6;
             const THROW_INTERVAL = 28;
             // =========================================================
 
             document.getElementById('totalFruits').textContent = FRUTAS_OBJETIVO;
 
-            // ---------- AUDIO (carga anticipada) ----------
+            // ---------- GESTIÓN DE CARGA ----------
+            const totalAssets = 6 + 5; // 6 imágenes + 5 audios
+            let assetsLoaded = 0;
+            const loadingBar = document.getElementById('loadingBar');
+            const startButton = document.getElementById('startButton');
+            const loadingOverlay = document.getElementById('loadingOverlay');
+
+            function assetLoaded() {
+                assetsLoaded++;
+                const percent = Math.floor((assetsLoaded / totalAssets) * 100);
+                loadingBar.style.width = percent + '%';
+                if (assetsLoaded === totalAssets) {
+                    // Todo listo, mostrar botón
+                    startButton.style.display = 'block';
+                    loadingBar.parentElement.style.display = 'none'; // oculta barra
+                }
+            }
+
+            // ---------- AUDIO ----------
             let audioCtx = null;
             let musicGain = null;
             let musicSource = null;
-            let audioInitialized = false;
+            let audioReady = false;
 
             const audioFiles = {
                 background: 'musica_fondo.mp3',
@@ -184,14 +261,12 @@
             };
             const audioBuffers = {};
 
-            // Crear contexto de audio inmediatamente (aunque esté suspendido)
             try {
                 audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             } catch (e) {
                 console.warn('Audio no soportado');
             }
 
-            // Precargar todos los sonidos en paralelo, sin esperar al primer toque
             function loadAudio(name, url) {
                 return fetch(url)
                     .then(response => {
@@ -199,45 +274,55 @@
                         return response.arrayBuffer();
                     })
                     .then(arrayBuffer => audioCtx.decodeAudioData(arrayBuffer))
-                    .then(buffer => { audioBuffers[name] = buffer; })
-                    .catch(err => console.warn(`No se pudo cargar el audio "${name}" (${url}):`, err));
+                    .then(buffer => {
+                        audioBuffers[name] = buffer;
+                        assetLoaded(); // contar como recurso cargado
+                    })
+                    .catch(err => {
+                        console.warn(`No se pudo cargar el audio "${name}":`, err);
+                        assetLoaded(); // contar igual para no bloquear
+                    });
             }
 
-            // Iniciar carga de todos los audios al instante
+            // Iniciar carga de audios inmediatamente
             if (audioCtx) {
-                Promise.all(Object.entries(audioFiles).map(([name, url]) => loadAudio(name, url)))
-                    .then(() => console.log('Todos los audios precargados'));
+                Object.entries(audioFiles).forEach(([name, url]) => loadAudio(name, url));
+            } else {
+                // Si no hay audioCtx, marcar los 5 audios como cargados
+                for (let i = 0; i < 5; i++) assetLoaded();
             }
 
-            // Activar reproducción tras el primer gesto del usuario
-            function activateAudio() {
-                if (!audioCtx || audioInitialized) return;
-                // Reanudar el contexto si está suspendido
-                if (audioCtx.state === 'suspended') {
-                    audioCtx.resume();
+            // Activar audio al pulsar el botón de inicio
+            function startGameAfterLoad() {
+                if (audioCtx) {
+                    if (audioCtx.state === 'suspended') {
+                        audioCtx.resume();
+                    }
+                    // Crear nodo de ganancia para música
+                    if (!musicGain) {
+                        musicGain = audioCtx.createGain();
+                        musicGain.gain.value = 0.4;
+                        musicGain.connect(audioCtx.destination);
+                    }
+                    // Iniciar música si el buffer está listo
+                    if (audioBuffers.background) {
+                        playBackgroundMusic();
+                    }
                 }
-                // Crear nodo de ganancia para la música
-                musicGain = audioCtx.createGain();
-                musicGain.gain.value = 0.4;
-                musicGain.connect(audioCtx.destination);
-
-                // Iniciar música de fondo si ya está cargada
-                if (audioBuffers.background) {
-                    playBackgroundMusic();
-                } else {
-                    // Si aún no se ha cargado, esperar un momento y reintentar
-                    const checkInterval = setInterval(() => {
-                        if (audioBuffers.background) {
-                            playBackgroundMusic();
-                            clearInterval(checkInterval);
-                        }
-                    }, 100);
-                }
-                audioInitialized = true;
+                audioReady = true;
+                // Ocultar overlay de carga
+                loadingOverlay.style.opacity = '0';
+                setTimeout(() => {
+                    loadingOverlay.style.display = 'none';
+                }, 300);
+                resetGame();
+                gameLoop();
             }
+
+            document.getElementById('startButton').addEventListener('click', startGameAfterLoad);
 
             function playBackgroundMusic() {
-                if (!audioCtx || !audioBuffers.background) return;
+                if (!audioCtx || !audioBuffers.background || !musicGain) return;
                 if (musicSource) {
                     musicSource.stop();
                     musicSource.disconnect();
@@ -250,7 +335,7 @@
             }
 
             function playSound(name, volume = 0.7) {
-                if (!audioInitialized || !audioCtx || !audioBuffers[name]) return;
+                if (!audioReady || !audioCtx || !audioBuffers[name]) return;
                 const source = audioCtx.createBufferSource();
                 const gainNode = audioCtx.createGain();
                 gainNode.gain.value = volume;
@@ -259,19 +344,6 @@
                 gainNode.connect(audioCtx.destination);
                 source.start();
             }
-
-            // Escuchar el primer toque para desbloquear el audio
-            function handleFirstInteraction() {
-                activateAudio();
-                document.removeEventListener('touchstart', handleFirstInteraction);
-                document.removeEventListener('click', handleFirstInteraction);
-                canvas.removeEventListener('touchstart', handleFirstInteraction);
-                canvas.removeEventListener('click', handleFirstInteraction);
-            }
-            document.addEventListener('touchstart', handleFirstInteraction, { once: true });
-            document.addEventListener('click', handleFirstInteraction, { once: true });
-            canvas.addEventListener('touchstart', handleFirstInteraction, { once: true });
-            canvas.addEventListener('click', handleFirstInteraction, { once: true });
 
             function resizeCanvas() {
                 const displayW = window.innerWidth;
@@ -314,17 +386,13 @@
             const EVENT_DURATION = 100;
             let particles = [];
 
-            // Temporizador de pasos
             let stepTimer = 0;
             const STEP_INTERVAL = 15;
 
             const images = { background: null, wolf: null, bear: null, rabbit: null, fruit: null, heroDefault: null };
-            let imagesLoaded = 0;
-            const totalImages = 6;
 
             function imageLoaded() {
-                imagesLoaded++;
-                if (imagesLoaded === totalImages) { resetGame(); gameLoop(); }
+                assetLoaded(); // contar imagen
             }
 
             images.background = new Image();
@@ -393,7 +461,7 @@
                 if (images.rabbit?.complete) ctx.drawImage(images.rabbit, 840, WORLD_H - 190, RABBIT_W, RABBIT_H);
                 ctx.font = "bold 34px 'Comic Neue'";
                 ctx.fillStyle = "#ffffff"; ctx.shadowBlur = 8;
-                ctx.fillText("🎉 ¡HOLA AMIGO! 🎉", 400, WORLD_H - 220);
+                ctx.fillText("🎉 ¡مرحبا ساره! 🎉", 400, WORLD_H - 220);
                 ctx.shadowBlur = 0; ctx.globalAlpha = 1;
             }
 
@@ -434,7 +502,6 @@
                         if (!specialEventActive) {
                             fruitsCollected = Math.min(fruitsCollected + 1, FRUTAS_OBJETIVO);
                             document.getElementById('fruitCounter').innerText = fruitsCollected;
-                            // Sonido de recogida instantáneo
                             playSound('recoger', 0.8);
                             for(let p=0;p<12;p++) particles.push({
                                 x: f.x+FRUIT_SIZE/2, y: f.y+FRUIT_SIZE/2,
@@ -474,7 +541,6 @@
                     moving = true;
                 }
                 heroX = Math.min(Math.max(heroX, 8), WORLD_W - heroW - 8);
-
                 if (moving) {
                     stepTimer++;
                     if (stepTimer >= STEP_INTERVAL) {
@@ -551,7 +617,7 @@
                 reader.readAsDataURL(file);
             }
 
-            // Controles táctiles
+            // Controles táctiles (idénticos)
             let touchStartX = null, isDragging = false;
             canvas.addEventListener('touchstart', (e) => {
                 e.preventDefault();
@@ -603,6 +669,8 @@
                 if (document.fullscreenElement) document.exitFullscreen();
                 else document.documentElement.requestFullscreen();
             });
+
+            // Ya no se inicia automáticamente; esperamos al botón de inicio
         })();
     </script>
 </body>
