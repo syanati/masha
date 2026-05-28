@@ -304,28 +304,34 @@
 
         // ========== LÓGICA DEL JUEGO ==========
         function updateWolfThrows() {
-            if (wolfThrowCooldown <= 0 && !specialEventActive) {
-                wolfFruits.push({
-                    x: 130,
-                    y: CH - 370,
-                    size: FRUIT_SIZE,
-                    vx: (Math.random() * 3 + 1.8) * (Math.random() > 0.5 ? 1 : -0.7),
-                    vy: 3.2
-                });
-                wolfThrowCooldown = 38;
-            } else {
-                wolfThrowCooldown--;
-            }
-            for (let i = 0; i < wolfFruits.length; i++) {
-                let f = wolfFruits[i];
-                f.x += f.vx;
-                f.y += f.vy;
-                if (f.y > CH + 150 || f.x < -150 || f.x > CW + 150) {
-                    wolfFruits.splice(i,1);
-                    i--;
-                }
-            }
+    if (wolfThrowCooldown <= 0 && !specialEventActive) {
+        // Coordenadas ajustadas según la nueva posición del lobo:
+        // drawWolf(620, CH-600, ancho=140, alto=220)
+        // El punto de lanzamiento será el centro aproximado del lobo (x=690, y=CH-490)
+        const loboX = 620 + 70;   // centro del ancho (620 + 140/2)
+        const loboY = CH - 600 + 110;  // centro vertical del cuerpo (CH-600 + 220/2)
+        
+        wolfFruits.push({
+            x: loboX,
+            y: loboY,
+            size: FRUIT_SIZE,
+            vx: (Math.random() * 3 + 1.8) * (Math.random() > 0.5 ? 1 : -0.7),
+            vy: 3.2
+        });
+        wolfThrowCooldown = 38;
+    } else {
+        wolfThrowCooldown--;
+    }
+    for (let i = 0; i < wolfFruits.length; i++) {
+        let f = wolfFruits[i];
+        f.x += f.vx;
+        f.y += f.vy;
+        if (f.y > CH + 150 || f.x < -150 || f.x > CW + 150) {
+            wolfFruits.splice(i, 1);
+            i--;
         }
+    }
+}
 
         function checkFruitCollection() {
             for (let i = 0; i < wolfFruits.length; i++) {
