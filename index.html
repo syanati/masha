@@ -49,7 +49,7 @@
             position: relative;
             width: 100%;
             height: 100%;
-            background: #000; /* color de las bandas si aparecen */
+            background: #000;
         }
         canvas {
             display: block;
@@ -161,29 +161,112 @@
             const WORLD_H = 620;
 
             // ===================== CONFIGURACIÓN =====================
-            const FRUTAS_OBJETIVO = 10;          // frutas necesarias para evento especial
-            const MOVE_SPEED = 6.8;              // velocidad de Masha
-            const FRUIT_SPEED_MULTIPLIER = 1.0;  // multiplicador de velocidad de frutas (1.0 normal, >1 más rápido)
-            const THROW_INTERVAL = 38;           // frames entre lanzamientos del lobo (menor = más frecuente)
+            const FRUTAS_OBJETIVO = 10;
+            const MOVE_SPEED = 6.8;
+            const FRUIT_SPEED_MULTIPLIER = 1.0;
+            const THROW_INTERVAL = 38;
             // =========================================================
 
             document.getElementById('totalFruits').textContent = FRUTAS_OBJETIVO;
+
+            // ---------- AUDIO ----------
+            let audioCtx = null;
+            let musicGain = null;
+            let musicSource = null;
+            let audioInitialized = false;
+
+            const audioFiles = {
+                background: 'musica_fondo.mp3',
+                lanzar: 'lanzar_fruta.mp3',
+                recoger: 'recoger_fruta.mp3',
+                celebracion: 'celebracion.mp3',
+                pasos: 'pasos.mp3'
+            };
+            const audioBuffers = {};
+
+            // Precargar todos los audios
+            function loadAudio(name, url) {
+                return fetch(url)
+                    .then(response => {
+                        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                        return response.arrayBuffer();
+                    })
+                    .then(arrayBuffer => audioCtx.decodeAudioData(arrayBuffer))
+                    .then(buffer => { audioBuffers[name] = buffer; })
+                    .catch(err => console.warn(`No se pudo cargar el audio "${name}" (${url}):`, err));
+            }
+
+            async function initAudio() {
+                if (audioInitialized) return;
+                try {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                    // Crear nodo de ganancia para música
+                    musicGain = audioCtx.createGain();
+                    musicGain.gain.value = 0.4; // volumen de la música
+                    musicGain.connect(audioCtx.destination);
+
+                    // Cargar todos los sonidos en paralelo
+                    await Promise.all(Object.entries(audioFiles).map(([name, url]) => loadAudio(name, url)));
+
+                    // Iniciar música de fondo en bucle
+                    playBackgroundMusic();
+                    audioInitialized = true;
+                    console.log('Audio inicializado correctamente');
+                } catch (e) {
+                    console.warn('Error al inicializar audio:', e);
+                }
+            }
+
+            function playBackgroundMusic() {
+                if (!audioCtx || !audioBuffers.background) return;
+                if (musicSource) {
+                    musicSource.stop();
+                    musicSource.disconnect();
+                }
+                musicSource = audioCtx.createBufferSource();
+                musicSource.buffer = audioBuffers.background;
+                musicSource.loop = true;
+                musicSource.connect(musicGain);
+                musicSource.start();
+            }
+
+            function playSound(name, volume = 0.7) {
+                if (!audioInitialized || !audioCtx || !audioBuffers[name]) return;
+                const source = audioCtx.createBufferSource();
+                const gainNode = audioCtx.createGain();
+                gainNode.gain.value = volume;
+                source.buffer = audioBuffers[name];
+                source.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                source.start();
+            }
+
+            // Al primer toque en cualquier parte, activamos el audio
+            function activateAudioOnFirstTouch() {
+                if (!audioInitialized) {
+                    initAudio();
+                }
+                document.removeEventListener('touchstart', activateAudioOnFirstTouch);
+                document.removeEventListener('click', activateAudioOnFirstTouch);
+                canvas.removeEventListener('touchstart', activateAudioOnFirstTouch);
+                canvas.removeEventListener('click', activateAudioOnFirstTouch);
+            }
+            document.addEventListener('touchstart', activateAudioOnFirstTouch, { once: true });
+            document.addEventListener('click', activateAudioOnFirstTouch, { once: true });
+            canvas.addEventListener('touchstart', activateAudioOnFirstTouch, { once: true });
+            canvas.addEventListener('click', activateAudioOnFirstTouch, { once: true });
 
             function resizeCanvas() {
                 const displayW = window.innerWidth;
                 const displayH = window.innerHeight;
                 const dpr = window.devicePixelRatio || 1;
-
                 canvas.width = displayW * dpr;
                 canvas.height = displayH * dpr;
-
-                // Escalamos para que el mundo ENTERO quepa sin recortes (contain)
                 const scaleX = displayW / WORLD_W;
                 const scaleY = displayH / WORLD_H;
-                const scale = Math.min(scaleX, scaleY);   // <-- min en lugar de max para no recortar
+                const scale = Math.min(scaleX, scaleY);
                 const offsetX = (displayW - WORLD_W * scale) / 2;
                 const offsetY = (displayH - WORLD_H * scale) / 2;
-
                 ctx.setTransform(1, 0, 0, 1, 0, 0);
                 ctx.setTransform(dpr * scale, 0, 0, dpr * scale, dpr * offsetX, dpr * offsetY);
             }
@@ -213,6 +296,10 @@
             let eventTimer = 0;
             const EVENT_DURATION = 100;
             let particles = [];
+
+            // Temporizador de pasos
+            let stepTimer = 0;
+            const STEP_INTERVAL = 15; // frames entre pasos (aprox 250ms a 60fps)
 
             const images = { background: null, wolf: null, bear: null, rabbit: null, fruit: null, heroDefault: null };
             let imagesLoaded = 0;
@@ -256,12 +343,8 @@
             let currentHeroImage = images.heroDefault;
 
             function drawBackground() {
-                if (images.background?.complete) {
-                    ctx.drawImage(images.background, 0, 0, WORLD_W, WORLD_H);
-                } else {
-                    ctx.fillStyle = '#6f9e45';
-                    ctx.fillRect(0, 0, WORLD_W, WORLD_H);
-                }
+                if (images.background?.complete) ctx.drawImage(images.background, 0, 0, WORLD_W, WORLD_H);
+                else { ctx.fillStyle = '#6f9e45'; ctx.fillRect(0, 0, WORLD_W, WORLD_H); }
             }
             function drawWolf() {
                 if (images.wolf?.complete) ctx.drawImage(images.wolf, 620, WORLD_H - 600, 140, 220);
@@ -310,6 +393,8 @@
                         vy: baseVY * FRUIT_SPEED_MULTIPLIER
                     });
                     wolfThrowCooldown = THROW_INTERVAL;
+                    // Sonido de lanzamiento
+                    playSound('lanzar', 0.6);
                 } else {
                     wolfThrowCooldown--;
                 }
@@ -333,6 +418,8 @@
                         if (!specialEventActive) {
                             fruitsCollected = Math.min(fruitsCollected + 1, FRUTAS_OBJETIVO);
                             document.getElementById('fruitCounter').innerText = fruitsCollected;
+                            // Sonido de recoger
+                            playSound('recoger', 0.8);
                             for(let p=0;p<12;p++) particles.push({
                                 x: f.x+FRUIT_SIZE/2, y: f.y+FRUIT_SIZE/2,
                                 vx: (Math.random()-0.5)*7, vy: (Math.random()-1)* -5,
@@ -343,6 +430,8 @@
                                 eventTimer = EVENT_DURATION;
                                 fruitsCollected = 0;
                                 document.getElementById('fruitCounter').innerText = '0';
+                                // Sonido de celebración
+                                playSound('celebracion', 0.9);
                                 for (let j=0;j<40;j++) {
                                     setTimeout(() => {
                                         for(let k=0;k<5;k++) particles.push({
@@ -360,9 +449,27 @@
             }
 
             function updateMovement() {
-                if (leftPressed && heroX > 12) heroX -= MOVE_SPEED;
-                if (rightPressed && heroX + heroW < WORLD_W - 12) heroX += MOVE_SPEED;
+                let moving = false;
+                if (leftPressed && heroX > 12) {
+                    heroX -= MOVE_SPEED;
+                    moving = true;
+                }
+                if (rightPressed && heroX + heroW < WORLD_W - 12) {
+                    heroX += MOVE_SPEED;
+                    moving = true;
+                }
                 heroX = Math.min(Math.max(heroX, 8), WORLD_W - heroW - 8);
+
+                // Sonido de pasos
+                if (moving) {
+                    stepTimer++;
+                    if (stepTimer >= STEP_INTERVAL) {
+                        playSound('pasos', 0.4);
+                        stepTimer = 0;
+                    }
+                } else {
+                    stepTimer = 0; // reiniciar al soltar
+                }
             }
 
             function updateParticles() {
@@ -416,6 +523,7 @@
                 heroX = WORLD_W/2 - heroW/2;
                 wolfThrowCooldown = 5;
                 particles = [];
+                stepTimer = 0;
             }
 
             function setUserPhoto(file) {
@@ -434,7 +542,6 @@
             canvas.addEventListener('touchstart', (e) => {
                 e.preventDefault();
                 const rect = canvas.getBoundingClientRect();
-                // Ajustar coordenadas teniendo en cuenta el offset del mundo
                 const scale = Math.min(window.innerWidth / WORLD_W, window.innerHeight / WORLD_H);
                 const offsetX = (window.innerWidth - WORLD_W * scale) / 2;
                 touchStartX = (e.touches[0].clientX - rect.left - offsetX) / scale;
