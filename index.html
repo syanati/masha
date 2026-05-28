@@ -150,7 +150,7 @@
 
 <script>
     (function(){
-        // ========== CONFIGURACIÓN DEL CANVAS (TAMAÑO FIJO 1100x620) ==========
+        // ========== CONFIGURACIÓN DEL CANVAS ==========
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         const CW = 1100;
@@ -158,254 +158,143 @@
         canvas.width = CW;
         canvas.height = CH;
 
-        // ========== PROTAGONISTA: SOLO LA FOTO DEL USUARIO (CUERPO COMPLETO) ==========
-        let userPhoto = null;          // imagen subida por el usuario
-        const heroW = 90;              // más grande y visible
-        const heroH = 100;
+        // ========== TAMAÑOS DUPLICADOS (2X) ==========
+        // Personaje: 2 veces más grande que antes (antes 90x100, ahora 180x200)
+        const heroW = 180;
+        const heroH = 200;
         let heroX = CW/2 - heroW/2;
-        const groundY = CH - heroH - 15;   // posición en el suelo
+        const groundY = CH - heroH - 15;
         let heroY = groundY;
 
-        // Movimiento
+        // Fruta: 5 veces más grande (original 24 -> 120)
+        const FRUIT_SIZE = 120;
+
+        // Oso y Conejo: 2 veces más grandes (tamaño original aprox 80x100 -> 160x200)
+        const BEAR_W = 160;
+        const BEAR_H = 200;
+        const RABBIT_W = 130;
+        const RABBIT_H = 150;
+
+        // ========== MOVIMIENTO ==========
         let leftPressed = false;
         let rightPressed = false;
         const moveSpeed = 6.8;
 
-        // ========== FRUTAS 5 VECES MÁS GRANDES (tamaño original 24 → 120) ==========
+        // ========== ELEMENTOS DEL JUEGO ==========
         let wolfFruits = [];
-        const FRUIT_SIZE = 120;           // ¡5 veces más grande! (24*5 = 120)
         let fruitsCollected = 0;
         let wolfThrowCooldown = 0;
-
-        // ========== EVENTO ESPECIAL: OSO Y CONEJO (tamaño 2X) ==========
         let specialEventActive = false;
         let eventTimer = 0;
         const EVENT_DURATION = 100;
-
-        // ========== PARTÍCULAS ==========
         let particles = [];
 
-        // ========== DIBUJO DE FONDO ESPECTACULAR (ESTILO SERIE) ==========
-        function drawMasterBackground() {
-            // Cielo cálido
-            const gradSky = ctx.createLinearGradient(0, 0, 0, CH*0.6);
-            gradSky.addColorStop(0, '#ffe5b4');
-            gradSky.addColorStop(0.5, '#ffd58c');
-            gradSky.addColorStop(1, '#c2e0a0');
-            ctx.fillStyle = gradSky;
-            ctx.fillRect(0, 0, CW, CH);
+        // ========== IMÁGENES (desde archivos locales) ==========
+        const images = {
+            background: null,
+            wolf: null,
+            bear: null,
+            rabbit: null,
+            fruit: null,
+            heroDefault: null
+        };
+        let imagesLoaded = 0;
+        const totalImages = 6;
 
-            // Nubes esponjosas
-            ctx.fillStyle = '#fff8e7';
-            ctx.shadowBlur = 10;
-            ctx.shadowColor = 'rgba(0,0,0,0.1)';
-            ctx.beginPath();
-            ctx.ellipse(150, 65, 65, 50, 0, 0, Math.PI*2);
-            ctx.ellipse(210, 45, 80, 55, 0, 0, Math.PI*2);
-            ctx.ellipse(280, 70, 60, 48, 0, 0, Math.PI*2);
-            ctx.fill();
-            ctx.beginPath();
-            ctx.ellipse(850, 80, 70, 52, 0, 0, Math.PI*2);
-            ctx.ellipse(930, 55, 85, 58, 0, 0, Math.PI*2);
-            ctx.fill();
-            ctx.shadowBlur = 0;
-
-            // Montañas al fondo
-            ctx.fillStyle = '#9dbd7a';
-            ctx.beginPath();
-            ctx.moveTo(0, CH-180);
-            ctx.lineTo(180, CH-260);
-            ctx.lineTo(380, CH-190);
-            ctx.lineTo(550, CH-280);
-            ctx.lineTo(750, CH-210);
-            ctx.lineTo(950, CH-300);
-            ctx.lineTo(1100, CH-220);
-            ctx.lineTo(1100, CH);
-            ctx.lineTo(0, CH);
-            ctx.fill();
-            ctx.fillStyle = '#7ca05a';
-            ctx.beginPath();
-            ctx.moveTo(0, CH-150);
-            ctx.lineTo(130, CH-220);
-            ctx.lineTo(300, CH-160);
-            ctx.lineTo(500, CH-240);
-            ctx.lineTo(700, CH-180);
-            ctx.fill();
-
-            // Suelo con textura de hierba y flores
-            ctx.fillStyle = '#6f9e45';
-            ctx.fillRect(0, CH-110, CW, 115);
-            ctx.strokeStyle = '#457a24';
-            ctx.lineWidth = 1.8;
-            for(let i=0;i<180;i++) {
-                let x = (i*23) % CW;
-                ctx.beginPath();
-                ctx.moveTo(x, CH-112);
-                ctx.lineTo(x+4, CH-130);
-                ctx.lineTo(x-3, CH-125);
-                ctx.fillStyle = '#5b8c32';
-                ctx.fill();
+        function imageLoaded() {
+            imagesLoaded++;
+            if (imagesLoaded === totalImages) {
+                // Todas las imágenes están listas, se inicia el juego
+                resetGame();
+                gameLoop();
             }
-            // Flores
-            for(let f=0;f<45;f++) {
-                let fx = (f*37 + 12) % CW;
-                let fy = CH-95 + Math.sin(f)*7;
-                ctx.fillStyle = '#ffde7a';
-                ctx.beginPath();
-                ctx.arc(fx, fy, 4, 0, Math.PI*2);
-                ctx.fill();
-                ctx.fillStyle = '#ffa047';
-                ctx.beginPath();
-                ctx.arc(fx-2, fy-1, 2, 0, Math.PI*2);
-                ctx.fill();
-            }
-            // Arroyo
-            ctx.fillStyle = '#6fcfe0';
-            ctx.globalAlpha = 0.6;
-            ctx.fillRect(0, CH-48, CW, 18);
-            ctx.fillStyle = '#a8e4f0';
-            for(let w=0;w<15;w++) {
-                ctx.beginPath();
-                ctx.ellipse(70+w*80, CH-42, 12, 6, 0, 0, Math.PI*2);
-                ctx.fill();
-            }
-            ctx.globalAlpha = 1;
         }
 
-        // ========== ÁRBOL DEL LOBO (reubicado más arriba y derecha) ==========
-        function drawWolfTree() {
-            ctx.fillStyle = '#7a4a2c';
-            ctx.shadowBlur = 5;
-            ctx.fillRect(95, CH-310, 70, 230);   // tronco más a la derecha
-            ctx.fillStyle = '#9c6a3e';
-            for(let t=0;t<12;t++) {
-                ctx.fillRect(98+t*5, CH-290, 5, 14);
+        // Cargar fondo
+        images.background = new Image();
+        images.background.onload = imageLoaded;
+        images.background.onerror = () => { console.warn("Error fondo"); imageLoaded(); };
+        images.background.src = "fondo_bosque.png";
+
+        // Cargar lobo
+        images.wolf = new Image();
+        images.wolf.onload = imageLoaded;
+        images.wolf.onerror = () => { console.warn("Error lobo"); imageLoaded(); };
+        images.wolf.src = "lobo_arbol.png";
+
+        // Cargar oso
+        images.bear = new Image();
+        images.bear.onload = imageLoaded;
+        images.bear.onerror = () => { console.warn("Error oso"); imageLoaded(); };
+        images.bear.src = "oso_saludo.png";
+
+        // Cargar conejo
+        images.rabbit = new Image();
+        images.rabbit.onload = imageLoaded;
+        images.rabbit.onerror = () => { console.warn("Error conejo"); imageLoaded(); };
+        images.rabbit.src = "conejo_saludo.png";
+
+        // Cargar fruta
+        images.fruit = new Image();
+        images.fruit.onload = imageLoaded;
+        images.fruit.onerror = () => { console.warn("Error fruta"); imageLoaded(); };
+        images.fruit.src = "fruta.png";
+
+        // Cargar personaje por defecto (masha_default.png) - 2x más grande
+        images.heroDefault = new Image();
+        images.heroDefault.onload = imageLoaded;
+        images.heroDefault.onerror = () => { console.warn("Error heroe default"); imageLoaded(); };
+        images.heroDefault.src = "masha_default.png";
+
+        // Imagen del usuario (foto subida)
+        let userPhoto = null;
+        let currentHeroImage = images.heroDefault; // por defecto la imagen de Masha
+
+        // ========== FUNCIONES DE DIBUJO CON LAS IMÁGENES ==========
+        function drawBackground() {
+            if (images.background && images.background.complete) {
+                ctx.drawImage(images.background, 0, 0, CW, CH);
+            } else {
+                // fallback
+                ctx.fillStyle = '#6f9e45';
+                ctx.fillRect(0, 0, CW, CH);
             }
-            // Copa
-            ctx.fillStyle = '#367c2a';
-            ctx.beginPath();
-            ctx.ellipse(135, CH-330, 65, 68, 0, 0, Math.PI*2);
-            ctx.fill();
-            ctx.fillStyle = '#57a53a';
-            ctx.beginPath();
-            ctx.ellipse(105, CH-348, 48, 55, 0, 0, Math.PI*2);
-            ctx.fill();
-            ctx.beginPath();
-            ctx.ellipse(170, CH-352, 52, 58, 0, 0, Math.PI*2);
-            ctx.fill();
-            ctx.fillStyle = '#7a4a2c';
-            ctx.fillRect(145, CH-340, 45, 15);
-            ctx.fillRect(85, CH-335, 42, 12);
-            ctx.shadowBlur = 0;
         }
 
-        // ========== LOBO (más arriba y derecha: x:95, y más alto) ==========
-        function drawWolfOnTree() {
-            ctx.save();
-            ctx.shadowBlur = 3;
-            const baseX = 115;       // más a la derecha
-            const baseY = CH-365;     // más arriba (antes CH-330)
-            // Cuerpo
-            ctx.fillStyle = '#6f5a48';
-            ctx.beginPath();
-            ctx.ellipse(baseX+18, baseY+8, 28, 32, 0.1, 0, Math.PI*2);
-            ctx.fill();
-            ctx.fillStyle = '#947c62';
-            ctx.beginPath();
-            ctx.ellipse(baseX+8, baseY+0, 24, 26, -0.1, 0, Math.PI*2);
-            ctx.fill();
-            // Cabeza
-            ctx.fillStyle = '#b88a60';
-            ctx.beginPath();
-            ctx.ellipse(baseX+25, baseY-16, 22, 24, 0, 0, Math.PI*2);
-            ctx.fill();
-            // Orejas
-            ctx.fillStyle = '#8b5a3c';
-            ctx.beginPath();
-            ctx.moveTo(baseX+12, baseY-30);
-            ctx.lineTo(baseX+2, baseY-46);
-            ctx.lineTo(baseX+20, baseY-36);
-            ctx.fill();
-            ctx.beginPath();
-            ctx.moveTo(baseX+36, baseY-29);
-            ctx.lineTo(baseX+48, baseY-44);
-            ctx.lineTo(baseX+44, baseY-34);
-            ctx.fill();
-            // Ojos
-            ctx.fillStyle = '#1f1a12';
-            ctx.beginPath();
-            ctx.arc(baseX+18, baseY-20, 3.5, 0, Math.PI*2);
-            ctx.fill();
-            ctx.beginPath();
-            ctx.arc(baseX+34, baseY-20, 3.5, 0, Math.PI*2);
-            ctx.fill();
-            ctx.fillStyle = "#ffffff";
-            ctx.beginPath();
-            ctx.arc(baseX+16, baseY-21, 1.2, 0, Math.PI*2);
-            ctx.fill();
-            ctx.beginPath();
-            ctx.arc(baseX+32, baseY-21, 1.2, 0, Math.PI*2);
-            ctx.fill();
-            ctx.fillStyle = '#8c5a38';
-            ctx.beginPath();
-            ctx.ellipse(baseX+25, baseY-12, 8, 5, 0, 0, Math.PI*2);
-            ctx.fill();
-            ctx.fillStyle = "#401f0a";
-            ctx.beginPath();
-            ctx.arc(baseX+25, baseY-12, 2.5, 0, Math.PI*2);
-            ctx.fill();
-            // Cola
-            ctx.fillStyle = '#9f7f60';
-            ctx.beginPath();
-            ctx.moveTo(baseX-2, baseY+10);
-            ctx.quadraticCurveTo(baseX-20, baseY+2, baseX-12, baseY+18);
-            ctx.fill();
-            ctx.restore();
+        function drawWolf() {
+            if (images.wolf && images.wolf.complete) {
+                // Lobo más arriba y a la derecha: posición x=95, y=CH-350 (ajustable)
+                ctx.drawImage(images.wolf, 95, CH - 350, 140, 220);
+            }
         }
 
-        // ========== FRUTA GIGANTE (5 veces más grande) ==========
         function drawGiantFruit(x, y) {
-            ctx.save();
-            ctx.shadowBlur = 8;
-            ctx.fillStyle = '#e6321c';
-            ctx.beginPath();
-            ctx.ellipse(x+FRUIT_SIZE/2, y+FRUIT_SIZE/2, FRUIT_SIZE/2-5, FRUIT_SIZE/2-3, 0, 0, Math.PI*2);
-            ctx.fill();
-            ctx.fillStyle = '#c92512';
-            ctx.beginPath();
-            ctx.ellipse(x+FRUIT_SIZE/2-12, y+FRUIT_SIZE/2-8, 10, 12, 0, 0, Math.PI*2);
-            ctx.fill();
-            ctx.fillStyle = '#6a9530';
-            ctx.beginPath();
-            ctx.moveTo(x+FRUIT_SIZE/2, y+8);
-            ctx.lineTo(x+FRUIT_SIZE/2+12, y-6);
-            ctx.lineTo(x+FRUIT_SIZE/2-12, y-6);
-            ctx.fill();
-            ctx.fillStyle = '#ffd966';
-            ctx.beginPath();
-            ctx.arc(x+FRUIT_SIZE/2-8, y+FRUIT_SIZE/2-10, 5, 0, Math.PI*2);
-            ctx.fill();
-            ctx.restore();
+            if (images.fruit && images.fruit.complete) {
+                ctx.drawImage(images.fruit, x, y, FRUIT_SIZE, FRUIT_SIZE);
+            } else {
+                // fallback
+                ctx.fillStyle = '#e6321c';
+                ctx.beginPath();
+                ctx.ellipse(x+FRUIT_SIZE/2, y+FRUIT_SIZE/2, FRUIT_SIZE/2-5, FRUIT_SIZE/2-3, 0, 0, Math.PI*2);
+                ctx.fill();
+            }
         }
 
-        // ========== PROTAGONISTA: SOLO LA FOTO (CUERPO COMPLETO) ==========
         function drawHero() {
-            if (userPhoto && userPhoto.complete && userPhoto.naturalWidth > 0) {
-                // Dibujamos la foto del usuario ocupando todo el cuerpo
+            if (currentHeroImage && currentHeroImage.complete) {
                 ctx.save();
                 ctx.shadowBlur = 6;
                 ctx.beginPath();
                 ctx.roundRect(heroX, heroY, heroW, heroH, 15);
                 ctx.clip();
-                ctx.drawImage(userPhoto, heroX, heroY, heroW, heroH);
+                ctx.drawImage(currentHeroImage, heroX, heroY, heroW, heroH);
                 ctx.restore();
-                // Marco decorativo
                 ctx.beginPath();
                 ctx.roundRect(heroX, heroY, heroW, heroH, 15);
                 ctx.strokeStyle = '#ffd966';
                 ctx.lineWidth = 3.5;
                 ctx.stroke();
-                // Pequeño detalle: una flor en la cabeza
+                // Detalle flor
                 ctx.fillStyle = '#ff88aa';
                 ctx.beginPath();
                 ctx.ellipse(heroX+heroW-18, heroY+14, 11, 10, 0.2, 0, Math.PI*2);
@@ -415,136 +304,38 @@
                 ctx.ellipse(heroX+heroW-21, heroY+13, 6, 6, 0, 0, Math.PI*2);
                 ctx.fill();
             } else {
-                // Si aún no subió foto: dibujamos una silueta divertida con mensaje
+                // fallback mientras carga
                 ctx.fillStyle = '#c0a070';
-                ctx.beginPath();
-                ctx.roundRect(heroX, heroY, heroW, heroH, 15);
-                ctx.fill();
-                ctx.fillStyle = '#5a3a1a';
-                ctx.font = "bold 14px 'Comic Neue'";
-                ctx.fillText("📸 SUBE TU", heroX+12, heroY+45);
-                ctx.fillText("   FOTO", heroX+22, heroY+65);
-                ctx.fillStyle = "#ffaa66";
-                ctx.beginPath();
-                ctx.arc(heroX+heroW-20, heroY+22, 9, 0, Math.PI*2);
-                ctx.fill();
+                ctx.fillRect(heroX, heroY, heroW, heroH);
             }
         }
 
-        // ========== OSO Y CONEJO 2 VECES MÁS GRANDES ==========
         function drawBearAndRabbit() {
             if (!specialEventActive) return;
             let alpha = eventTimer < 20 ? eventTimer / 20 : 1;
             ctx.globalAlpha = alpha;
-
-            // OSO (2x tamaño: base original era ~80x100, ahora 160x200)
-            ctx.save();
-            ctx.shadowBlur = 6;
-            const bearX = 680;
-            const bearY = CH-210;
-            ctx.fillStyle = '#a57248';
-            ctx.beginPath();
-            ctx.ellipse(bearX+80, bearY+60, 70, 85, 0, 0, Math.PI*2);
-            ctx.fill();
-            ctx.fillStyle = '#c99464';
-            ctx.beginPath();
-            ctx.ellipse(bearX+50, bearY+30, 48, 52, 0, 0, Math.PI*2);
-            ctx.fill();
-            ctx.fillStyle = '#8b5a36';
-            ctx.beginPath();
-            ctx.ellipse(bearX+25, bearY-5, 28, 32, 0, 0, Math.PI*2);
-            ctx.fill();
-            ctx.beginPath();
-            ctx.ellipse(bearX+105, bearY-5, 28, 32, 0, 0, Math.PI*2);
-            ctx.fill();
-            ctx.fillStyle = '#f7d9b0';
-            ctx.beginPath();
-            ctx.ellipse(bearX+50, bearY+18, 24, 28, 0, 0, Math.PI*2);
-            ctx.fill();
-            ctx.fillStyle = '#34200c';
-            ctx.beginPath();
-            ctx.arc(bearX+40, bearY+12, 5, 0, Math.PI*2);
-            ctx.fill();
-            ctx.beginPath();
-            ctx.arc(bearX+75, bearY+12, 5, 0, Math.PI*2);
-            ctx.fill();
-            ctx.fillStyle = "#7a4a2a";
-            ctx.beginPath();
-            ctx.ellipse(bearX+56, bearY+32, 16, 10, 0, 0, Math.PI*2);
-            ctx.fill();
-            // Mano saludando
-            ctx.fillStyle = '#b87a48';
-            ctx.beginPath();
-            ctx.ellipse(bearX+95, bearY+10, 22, 16, -0.8, 0, Math.PI*2);
-            ctx.fill();
-
-            // CONEJO (2x tamaño)
-            const rabbitX = 850;
-            const rabbitY = CH-195;
-            ctx.fillStyle = '#ddba8a';
-            ctx.beginPath();
-            ctx.ellipse(rabbitX+50, rabbitY+55, 45, 60, 0, 0, Math.PI*2);
-            ctx.fill();
-            ctx.fillStyle = '#f3e2c0';
-            ctx.beginPath();
-            ctx.ellipse(rabbitX+38, rabbitY+24, 32, 38, 0, 0, Math.PI*2);
-            ctx.fill();
-            ctx.fillStyle = '#c69862';
-            ctx.beginPath();
-            ctx.ellipse(rabbitX+24, rabbitY-15, 14, 52, -0.2, 0, Math.PI*2);
-            ctx.fill();
-            ctx.beginPath();
-            ctx.ellipse(rabbitX+58, rabbitY-12, 14, 56, 0.15, 0, Math.PI*2);
-            ctx.fill();
-            ctx.fillStyle = "#ffecd6";
-            ctx.beginPath();
-            ctx.ellipse(rabbitX+36, rabbitY+16, 20, 24, 0, 0, Math.PI*2);
-            ctx.fill();
-            ctx.fillStyle = "#422a14";
-            ctx.beginPath();
-            ctx.arc(rabbitX+30, rabbitY+10, 4, 0, Math.PI*2);
-            ctx.fill();
-            ctx.beginPath();
-            ctx.arc(rabbitX+48, rabbitY+10, 4, 0, Math.PI*2);
-            ctx.fill();
-            ctx.fillStyle = "#f0985c";
-            ctx.beginPath();
-            ctx.ellipse(rabbitX+38, rabbitY+24, 7, 5, 0, 0, Math.PI*2);
-            ctx.fill();
-            // Bigotes
-            ctx.beginPath();
-            ctx.moveTo(rabbitX+20, rabbitY+22);
-            ctx.lineTo(rabbitX+6, rabbitY+18);
-            ctx.lineTo(rabbitX+8, rabbitY+26);
-            ctx.strokeStyle = "#5a3e26";
-            ctx.lineWidth = 2;
-            ctx.stroke();
-            ctx.beginPath();
-            ctx.moveTo(rabbitX+55, rabbitY+22);
-            ctx.lineTo(rabbitX+70, rabbitY+18);
-            ctx.lineTo(rabbitX+68, rabbitY+26);
-            ctx.stroke();
-            // Pata saludando
-            ctx.fillStyle = '#eabc84';
-            ctx.beginPath();
-            ctx.ellipse(rabbitX+72, rabbitY+18, 15, 12, 0.5, 0, Math.PI*2);
-            ctx.fill();
-
-            ctx.restore();
+            // Oso (2x tamaño)
+            if (images.bear && images.bear.complete) {
+                ctx.drawImage(images.bear, 660, CH - 210, BEAR_W, BEAR_H);
+            }
+            // Conejo (2x tamaño)
+            if (images.rabbit && images.rabbit.complete) {
+                ctx.drawImage(images.rabbit, 840, CH - 190, RABBIT_W, RABBIT_H);
+            }
             ctx.font = "bold 34px 'Comic Neue'";
             ctx.fillStyle = "#ffffff";
             ctx.shadowBlur = 8;
-            ctx.fillText("🎉 ¡HOLA AMIGO! 🎉", 430, CH-240);
+            ctx.fillText("🎉 ¡HOLA AMIGO! 🎉", 400, CH - 220);
             ctx.shadowBlur = 0;
             ctx.globalAlpha = 1;
         }
 
-        // ========== ACTUALIZACIÓN DE FRUTAS (LANZADAS POR EL LOBO) ==========
+        // ========== LÓGICA DEL JUEGO ==========
         function updateWolfThrows() {
             if (wolfThrowCooldown <= 0 && !specialEventActive) {
                 wolfFruits.push({
-                    x: 135,                // origen desde el lobo (más derecha)
-                    y: CH-390,
+                    x: 130,  // desde la posición del lobo (más a la derecha)
+                    y: CH - 370,
                     size: FRUIT_SIZE,
                     vx: (Math.random() * 3 + 1.8) * (Math.random() > 0.5 ? 1 : -0.7),
                     vy: 3.2
@@ -553,7 +344,7 @@
             } else {
                 wolfThrowCooldown--;
             }
-            for (let i=0; i<wolfFruits.length; i++) {
+            for (let i = 0; i < wolfFruits.length; i++) {
                 let f = wolfFruits[i];
                 f.x += f.vx;
                 f.y += f.vy;
@@ -565,7 +356,7 @@
         }
 
         function checkFruitCollection() {
-            for (let i=0; i<wolfFruits.length; i++) {
+            for (let i = 0; i < wolfFruits.length; i++) {
                 let f = wolfFruits[i];
                 if (heroX < f.x + FRUIT_SIZE && heroX + heroW > f.x &&
                     heroY < f.y + FRUIT_SIZE && heroY + heroH > f.y) {
@@ -573,7 +364,7 @@
                     if (!specialEventActive) {
                         fruitsCollected = Math.min(fruitsCollected + 1, 5);
                         document.getElementById('fruitCounter').innerText = fruitsCollected;
-                        // partículas de recogida
+                        // partículas
                         for(let p=0;p<12;p++) particles.push({
                             x: f.x+FRUIT_SIZE/2, y: f.y+FRUIT_SIZE/2,
                             vx: (Math.random()-0.5)*7, vy: (Math.random()-1)* -5,
@@ -600,7 +391,6 @@
             }
         }
 
-        // ========== MOVIMIENTO Y PARTÍCULAS ==========
         function updateMovement() {
             if (leftPressed && heroX > 12) heroX -= moveSpeed;
             if (rightPressed && heroX + heroW < CW - 12) heroX += moveSpeed;
@@ -617,6 +407,7 @@
                 if (p.life <= 0) particles.splice(i,1);
             }
         }
+
         function drawParticles() {
             for (let p of particles) {
                 ctx.globalAlpha = p.life;
@@ -628,11 +419,9 @@
             ctx.globalAlpha = 1;
         }
 
-        // ========== RENDER COMPLETO ==========
         function render() {
-            drawMasterBackground();
-            drawWolfTree();
-            drawWolfOnTree();
+            drawBackground();
+            drawWolf();
             for (let f of wolfFruits) drawGiantFruit(f.x, f.y);
             drawParticles();
             drawHero();
@@ -643,7 +432,6 @@
             }
         }
 
-        // ========== BUCLE PRINCIPAL ==========
         function gameLoop() {
             if (!specialEventActive) updateMovement();
             updateWolfThrows();
@@ -653,7 +441,6 @@
             requestAnimationFrame(gameLoop);
         }
 
-        // ========== REINICIO ==========
         function resetGame() {
             wolfFruits = [];
             fruitsCollected = 0;
@@ -665,21 +452,21 @@
             particles = [];
         }
 
-        // ========== SUBIR FOTO (PROTAGONISTA COMPLETO) ==========
-        function loadUserPhoto(file) {
+        // ========== SUBIR FOTO (reemplaza al personaje por defecto) ==========
+        function setUserPhoto(file) {
             if (!file) return;
             const reader = new FileReader();
             reader.onload = (e) => {
                 const img = new Image();
                 img.onload = () => {
-                    userPhoto = img;
+                    currentHeroImage = img;   // cambia la imagen del héroe
                 };
                 img.src = e.target.result;
             };
             reader.readAsDataURL(file);
         }
 
-        // ========== CONTROLES (TÁCTILES + TECLADO) ==========
+        // ========== CONTROLES ==========
         document.getElementById('btnLeft').addEventListener('pointerdown', (e) => { e.preventDefault(); leftPressed = true; });
         document.getElementById('btnLeft').addEventListener('pointerup', (e) => { e.preventDefault(); leftPressed = false; });
         document.getElementById('btnLeft').addEventListener('pointerleave', () => { leftPressed = false; });
@@ -697,13 +484,14 @@
         });
 
         document.getElementById('heroPhoto').addEventListener('change', (e) => {
-            if (e.target.files[0]) loadUserPhoto(e.target.files[0]);
+            if (e.target.files[0]) setUserPhoto(e.target.files[0]);
         });
         document.getElementById('resetBtn').addEventListener('click', resetGame);
 
-        // Iniciar juego
-        resetGame();
-        gameLoop();
+        // ========== INICIO (espera a que las imágenes se carguen) ==========
+        // Si alguna imagen no se carga, igualmente se inicia el juego con fallbacks.
+        // Pero el contador imageLoaded se encarga de arrancar cuando todas están listas.
+        // Si alguna falla, igualmente se llama a imageLoaded y se inicia.
 
         // Helper roundRect
         if (!CanvasRenderingContext2D.prototype.roundRect) {
