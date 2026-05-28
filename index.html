@@ -27,24 +27,6 @@
             font-family: 'Segoe UI', 'Comic Neue', cursive;
             height: 100dvh;
         }
-        .rotate-warning {
-            display: none;
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.9);
-            color: white;
-            z-index: 9999;
-            justify-content: center;
-            align-items: center;
-            font-size: clamp(1rem, 5vw, 1.8rem);
-            text-align: center;
-            flex-direction: column;
-            gap: 20px;
-        }
-        @media (orientation: portrait) {
-            .rotate-warning { display: flex; }
-            .game-wrapper, .loading-overlay { display: none; }
-        }
 
         /* Overlay de carga */
         .loading-overlay {
@@ -93,6 +75,22 @@
         .start-button:active {
             transform: translateY(3px);
             box-shadow: 0 1px 0 #b85e1a;
+        }
+
+        /* Pequeño aviso si no se puede girar (sutil) */
+        .rotate-hint {
+            display: none;
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.6);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            z-index: 20;
+            pointer-events: none;
         }
 
         .game-wrapper {
@@ -186,10 +184,6 @@
     </style>
 </head>
 <body>
-    <div class="rotate-warning">
-        <div>📱 Gira tu dispositivo a modo horizontal para jugar</div>
-    </div>
-
     <!-- Overlay de carga -->
     <div class="loading-overlay" id="loadingOverlay">
         <div>Cargando el bosque...</div>
@@ -201,6 +195,7 @@
 
     <div class="game-wrapper">
         <canvas id="gameCanvas"></canvas>
+        <div class="rotate-hint" id="rotateHint">📱 Gira tu dispositivo para mejor experiencia</div>
         <div class="ui-top-left">
             <button class="fullscreen-btn" id="fullscreenBtn">⛶ Pantalla completa</button>
         </div>
@@ -208,7 +203,7 @@
             <div class="score-badge">🍎 <span id="fruitCounter">0</span> / <span id="totalFruits">10</span></div>
             <label class="upload-label" for="heroPhoto">📸 Subir mi foto</label>
             <input type="file" id="heroPhoto" accept="image/*">
-            <button class="btn-icon" id="resetBtn">🌲 Reiniciar</button>
+            <button class="btn-icon" id="exitBtn">🚪 Salir</button>
         </div>
     </div>
 
@@ -220,7 +215,7 @@
             const WORLD_H = 620;
 
             // ===================== CONFIGURACIÓN =====================
-            const FRUTAS_OBJETIVO = 30;
+            const FRUTAS_OBJETIVO = 10;
             const MOVE_SPEED = 16.8;
             const FRUIT_SPEED_MULTIPLIER = 1.6;
             const THROW_INTERVAL = 28;
@@ -240,9 +235,8 @@
                 const percent = Math.floor((assetsLoaded / totalAssets) * 100);
                 loadingBar.style.width = percent + '%';
                 if (assetsLoaded === totalAssets) {
-                    // Todo listo, mostrar botón
                     startButton.style.display = 'block';
-                    loadingBar.parentElement.style.display = 'none'; // oculta barra
+                    loadingBar.parentElement.style.display = 'none';
                 }
             }
 
@@ -276,41 +270,35 @@
                     .then(arrayBuffer => audioCtx.decodeAudioData(arrayBuffer))
                     .then(buffer => {
                         audioBuffers[name] = buffer;
-                        assetLoaded(); // contar como recurso cargado
+                        assetLoaded();
                     })
                     .catch(err => {
                         console.warn(`No se pudo cargar el audio "${name}":`, err);
-                        assetLoaded(); // contar igual para no bloquear
+                        assetLoaded();
                     });
             }
 
-            // Iniciar carga de audios inmediatamente
             if (audioCtx) {
                 Object.entries(audioFiles).forEach(([name, url]) => loadAudio(name, url));
             } else {
-                // Si no hay audioCtx, marcar los 5 audios como cargados
                 for (let i = 0; i < 5; i++) assetLoaded();
             }
 
-            // Activar audio al pulsar el botón de inicio
             function startGameAfterLoad() {
                 if (audioCtx) {
                     if (audioCtx.state === 'suspended') {
                         audioCtx.resume();
                     }
-                    // Crear nodo de ganancia para música
                     if (!musicGain) {
                         musicGain = audioCtx.createGain();
                         musicGain.gain.value = 0.4;
                         musicGain.connect(audioCtx.destination);
                     }
-                    // Iniciar música si el buffer está listo
                     if (audioBuffers.background) {
                         playBackgroundMusic();
                     }
                 }
                 audioReady = true;
-                // Ocultar overlay de carga
                 loadingOverlay.style.opacity = '0';
                 setTimeout(() => {
                     loadingOverlay.style.display = 'none';
@@ -392,7 +380,7 @@
             const images = { background: null, wolf: null, bear: null, rabbit: null, fruit: null, heroDefault: null };
 
             function imageLoaded() {
-                assetLoaded(); // contar imagen
+                assetLoaded();
             }
 
             images.background = new Image();
@@ -461,7 +449,7 @@
                 if (images.rabbit?.complete) ctx.drawImage(images.rabbit, 840, WORLD_H - 190, RABBIT_W, RABBIT_H);
                 ctx.font = "bold 34px 'Comic Neue'";
                 ctx.fillStyle = "#ffffff"; ctx.shadowBlur = 8;
-                ctx.fillText("🎉 ¡مرحبا ساره! 🎉", 400, WORLD_H - 220);
+                ctx.fillText("🎉 ¡HOLA AMIGO! 🎉", 400, WORLD_H - 220);
                 ctx.shadowBlur = 0; ctx.globalAlpha = 1;
             }
 
@@ -664,13 +652,53 @@
             document.getElementById('heroPhoto').addEventListener('change', (e) => {
                 if (e.target.files[0]) setUserPhoto(e.target.files[0]);
             });
-            document.getElementById('resetBtn').addEventListener('click', resetGame);
-            document.getElementById('fullscreenBtn').addEventListener('click', () => {
-                if (document.fullscreenElement) document.exitFullscreen();
-                else document.documentElement.requestFullscreen();
+
+            // Botón Salir
+            document.getElementById('exitBtn').addEventListener('click', () => {
+                // Intentar cerrar la ventana (funciona si fue abierta con window.open)
+                window.close();
+                // Fallback: redirigir a una página en blanco o a la misma URL (puedes poner tu URL de salida)
+                setTimeout(() => {
+                    if (!window.closed) {
+                        window.location.href = 'about:blank'; // o 'https://tusitio.com/salir'
+                    }
+                }, 100);
             });
 
-            // Ya no se inicia automáticamente; esperamos al botón de inicio
+            // Botón de pantalla completa (intenta bloquear orientación)
+            document.getElementById('fullscreenBtn').addEventListener('click', () => {
+                if (document.fullscreenElement) {
+                    document.exitFullscreen();
+                    if (screen.orientation && screen.orientation.unlock) {
+                        screen.orientation.unlock();
+                    }
+                } else {
+                    document.documentElement.requestFullscreen().then(() => {
+                        if (screen.orientation && screen.orientation.lock) {
+                            screen.orientation.lock('landscape').catch(() => {
+                                // Si no se puede bloquear, mostramos un aviso sutil
+                                document.getElementById('rotateHint').style.display = 'block';
+                                setTimeout(() => {
+                                    document.getElementById('rotateHint').style.display = 'none';
+                                }, 2000);
+                            });
+                        }
+                    }).catch(() => {
+                        // Fullscreen denegado, mostramos el hint
+                        document.getElementById('rotateHint').style.display = 'block';
+                        setTimeout(() => {
+                            document.getElementById('rotateHint').style.display = 'none';
+                        }, 2000);
+                    });
+                }
+            });
+
+            // Al cargar, intentar bloquear orientación automáticamente si ya está en landscape
+            if (screen.orientation && screen.orientation.type && screen.orientation.type.startsWith('landscape')) {
+                // Ya está horizontal, podemos intentar bloquear sin pantalla completa? No siempre. Lo dejamos al botón.
+            }
+
+            // No iniciar automáticamente, esperamos al botón de inicio
         })();
     </script>
 </body>
