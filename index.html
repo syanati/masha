@@ -169,11 +169,11 @@
         // Fruta: 5 veces más grande (original 24 -> 120)
         const FRUIT_SIZE = 120;
 
-        // Oso y Conejo: 2 veces más grandes (tamaño original aprox 80x100 -> 160x200)
+        // Oso y Conejo: 2 veces más grandes
         const BEAR_W = 260;
         const BEAR_H = 300;
         const RABBIT_W = 230;
-        const RABBIT_H = 250;
+        const RABBIT_H = 350;
 
         // ========== MOVIMIENTO ==========
         let leftPressed = false;
@@ -204,58 +204,49 @@
         function imageLoaded() {
             imagesLoaded++;
             if (imagesLoaded === totalImages) {
-                // Todas las imágenes están listas, se inicia el juego
                 resetGame();
                 gameLoop();
             }
         }
 
-        // Cargar fondo
         images.background = new Image();
         images.background.onload = imageLoaded;
         images.background.onerror = () => { console.warn("Error fondo"); imageLoaded(); };
         images.background.src = "fondo_bosque.png";
 
-        // Cargar lobo
         images.wolf = new Image();
         images.wolf.onload = imageLoaded;
         images.wolf.onerror = () => { console.warn("Error lobo"); imageLoaded(); };
         images.wolf.src = "lobo_arbol.png";
 
-        // Cargar oso
         images.bear = new Image();
         images.bear.onload = imageLoaded;
         images.bear.onerror = () => { console.warn("Error oso"); imageLoaded(); };
         images.bear.src = "oso_saludo.png";
 
-        // Cargar conejo
         images.rabbit = new Image();
         images.rabbit.onload = imageLoaded;
         images.rabbit.onerror = () => { console.warn("Error conejo"); imageLoaded(); };
         images.rabbit.src = "conejo_saludo.png";
 
-        // Cargar fruta
         images.fruit = new Image();
         images.fruit.onload = imageLoaded;
         images.fruit.onerror = () => { console.warn("Error fruta"); imageLoaded(); };
         images.fruit.src = "fruta.png";
 
-        // Cargar personaje por defecto (masha_default.png) - 2x más grande
         images.heroDefault = new Image();
         images.heroDefault.onload = imageLoaded;
         images.heroDefault.onerror = () => { console.warn("Error heroe default"); imageLoaded(); };
         images.heroDefault.src = "masha_default.png";
 
-        // Imagen del usuario (foto subida)
         let userPhoto = null;
-        let currentHeroImage = images.heroDefault; // por defecto la imagen de Masha
+        let currentHeroImage = images.heroDefault;
 
-        // ========== FUNCIONES DE DIBUJO CON LAS IMÁGENES ==========
+        // ========== FUNCIONES DE DIBUJO ==========
         function drawBackground() {
             if (images.background && images.background.complete) {
                 ctx.drawImage(images.background, 0, 0, CW, CH);
             } else {
-                // fallback
                 ctx.fillStyle = '#6f9e45';
                 ctx.fillRect(0, 0, CW, CH);
             }
@@ -263,8 +254,7 @@
 
         function drawWolf() {
             if (images.wolf && images.wolf.complete) {
-                // Lobo más arriba y a la derecha: posición x=95, y=CH-350 (ajustable)
-                ctx.drawImage(images.wolf, 595, CH - 950, 140, 220);
+                ctx.drawImage(images.wolf, 295, CH - 550, 140, 220);
             }
         }
 
@@ -272,7 +262,6 @@
             if (images.fruit && images.fruit.complete) {
                 ctx.drawImage(images.fruit, x, y, FRUIT_SIZE, FRUIT_SIZE);
             } else {
-                // fallback
                 ctx.fillStyle = '#e6321c';
                 ctx.beginPath();
                 ctx.ellipse(x+FRUIT_SIZE/2, y+FRUIT_SIZE/2, FRUIT_SIZE/2-5, FRUIT_SIZE/2-3, 0, 0, Math.PI*2);
@@ -284,25 +273,10 @@
             if (currentHeroImage && currentHeroImage.complete) {
                 ctx.save();
                 ctx.shadowBlur = 6;
-                ctx.beginPath();
-                ctx.roundRect(heroX, heroY, heroW, heroH, 15);
-                ctx.clip();
+                // Dibujamos la imagen sin ningún borde ni recorte adicional
                 ctx.drawImage(currentHeroImage, heroX, heroY, heroW, heroH);
                 ctx.restore();
-                ctx.beginPath();
-                ctx.roundRect(heroX, heroY, heroW, heroH, 15);
-                ctx.strokeStyle = '#ffd966';
-                ctx.lineWidth = 3.5;
-                ctx.stroke();
-                // Detalle flor
-                ctx.fillStyle = '#ff88aa';
-                ctx.beginPath();
-                ctx.ellipse(heroX+heroW-18, heroY+14, 11, 10, 0.2, 0, Math.PI*2);
-                ctx.fill();
-                ctx.fillStyle = '#ffd966';
-                ctx.beginPath();
-                ctx.ellipse(heroX+heroW-21, heroY+13, 6, 6, 0, 0, Math.PI*2);
-                ctx.fill();
+                // NOTA: Se ha eliminado por completo el cuadrado amarillo y la flor decorativa
             } else {
                 // fallback mientras carga
                 ctx.fillStyle = '#c0a070';
@@ -314,11 +288,9 @@
             if (!specialEventActive) return;
             let alpha = eventTimer < 20 ? eventTimer / 20 : 1;
             ctx.globalAlpha = alpha;
-            // Oso (2x tamaño)
             if (images.bear && images.bear.complete) {
                 ctx.drawImage(images.bear, 660, CH - 210, BEAR_W, BEAR_H);
             }
-            // Conejo (2x tamaño)
             if (images.rabbit && images.rabbit.complete) {
                 ctx.drawImage(images.rabbit, 840, CH - 190, RABBIT_W, RABBIT_H);
             }
@@ -334,7 +306,7 @@
         function updateWolfThrows() {
             if (wolfThrowCooldown <= 0 && !specialEventActive) {
                 wolfFruits.push({
-                    x: 130,  // desde la posición del lobo (más a la derecha)
+                    x: 130,
                     y: CH - 370,
                     size: FRUIT_SIZE,
                     vx: (Math.random() * 3 + 1.8) * (Math.random() > 0.5 ? 1 : -0.7),
@@ -364,7 +336,6 @@
                     if (!specialEventActive) {
                         fruitsCollected = Math.min(fruitsCollected + 1, 5);
                         document.getElementById('fruitCounter').innerText = fruitsCollected;
-                        // partículas
                         for(let p=0;p<12;p++) particles.push({
                             x: f.x+FRUIT_SIZE/2, y: f.y+FRUIT_SIZE/2,
                             vx: (Math.random()-0.5)*7, vy: (Math.random()-1)* -5,
@@ -452,14 +423,13 @@
             particles = [];
         }
 
-        // ========== SUBIR FOTO (reemplaza al personaje por defecto) ==========
         function setUserPhoto(file) {
             if (!file) return;
             const reader = new FileReader();
             reader.onload = (e) => {
                 const img = new Image();
                 img.onload = () => {
-                    currentHeroImage = img;   // cambia la imagen del héroe
+                    currentHeroImage = img;
                 };
                 img.src = e.target.result;
             };
@@ -488,12 +458,7 @@
         });
         document.getElementById('resetBtn').addEventListener('click', resetGame);
 
-        // ========== INICIO (espera a que las imágenes se carguen) ==========
-        // Si alguna imagen no se carga, igualmente se inicia el juego con fallbacks.
-        // Pero el contador imageLoaded se encarga de arrancar cuando todas están listas.
-        // Si alguna falla, igualmente se llama a imageLoaded y se inicia.
-
-        // Helper roundRect
+        // helper roundRect ya no se usa, pero lo dejamos por si acaso
         if (!CanvasRenderingContext2D.prototype.roundRect) {
             CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, r) {
                 if (w < 2*r) r = w/2;
