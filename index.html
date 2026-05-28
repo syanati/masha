@@ -458,6 +458,55 @@
         document.getElementById('btnRight').addEventListener('pointerup', (e) => { e.preventDefault(); rightPressed = false; });
         document.getElementById('btnRight').addEventListener('pointerleave', () => { rightPressed = false; });
 
+                        // ========== CONTROL POR ARRASTRE TÁCTIL (deslizar el dedo sobre el canvas) ==========
+                let touchStartX = null;
+                let isDragging = false;
+                
+                canvas.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    const rect = canvas.getBoundingClientRect();
+                    const touch = e.touches[0];
+                    const canvasX = (touch.clientX - rect.left) * (CW / rect.width);
+                    touchStartX = canvasX;
+                    isDragging = true;
+                });
+                
+                canvas.addEventListener('touchmove', (e) => {
+                    e.preventDefault();
+                    if (!isDragging) return;
+                    const rect = canvas.getBoundingClientRect();
+                    const touch = e.touches[0];
+                    let canvasX = (touch.clientX - rect.left) * (CW / rect.width);
+                    let delta = canvasX - touchStartX;
+                    if (Math.abs(delta) > 8) {  // umbral mínimo para evitar movimientos muy pequeños
+                        if (delta > 0) {
+                            rightPressed = true;
+                            leftPressed = false;
+                        } else {
+                            leftPressed = true;
+                            rightPressed = false;
+                        }
+                        // Actualizar la posición inicial para que el movimiento sea continuo
+                        touchStartX = canvasX;
+                    }
+                });
+                
+                canvas.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    leftPressed = false;
+                    rightPressed = false;
+                    touchStartX = null;
+                    isDragging = false;
+                });
+                
+                // Para evitar que el canvas "robe" el scroll al deslizar fuera del juego
+                canvas.addEventListener('touchcancel', (e) => {
+                    e.preventDefault();
+                    leftPressed = false;
+                    rightPressed = false;
+                    isDragging = false;
+                });
+
         window.addEventListener('keydown', (e) => {
             if (e.key === 'ArrowLeft') { leftPressed = true; e.preventDefault(); }
             if (e.key === 'ArrowRight') { rightPressed = true; e.preventDefault(); }
