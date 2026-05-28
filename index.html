@@ -27,12 +27,30 @@
             font-family: 'Segoe UI', 'Comic Neue', cursive;
             height: 100dvh;
         }
+        .rotate-warning {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.9);
+            color: white;
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+            font-size: clamp(1rem, 5vw, 1.8rem);
+            text-align: center;
+            flex-direction: column;
+            gap: 20px;
+        }
+        @media (orientation: portrait) {
+            .rotate-warning { display: flex; }
+            .game-wrapper, .loading-overlay { display: none; }
+        }
 
         /* Overlay de carga */
         .loading-overlay {
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.9);
+            background: rgba(0,0,0,0.85);
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -75,32 +93,6 @@
         .start-button:active {
             transform: translateY(3px);
             box-shadow: 0 1px 0 #b85e1a;
-        }
-
-        /* Aviso de orientación */
-        .rotate-warning {
-            display: none;
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.9);
-            color: white;
-            z-index: 9999;
-            justify-content: center;
-            align-items: center;
-            font-size: clamp(1.5rem, 6vw, 2.5rem);
-            text-align: center;
-            flex-direction: column;
-            gap: 30px;
-            pointer-events: auto;
-        }
-        .rotate-warning img {
-            width: 80px;
-            height: 80px;
-            animation: rotate 1.5s infinite;
-        }
-        @keyframes rotate {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(90deg); }
         }
 
         .game-wrapper {
@@ -194,21 +186,20 @@
     </style>
 </head>
 <body>
-    <!-- Overlay de carga (también controla orientación) -->
+    <div class="rotate-warning">
+        <div>📱 Gira tu dispositivo a modo horizontal para jugar</div>
+    </div>
+
+    <!-- Overlay de carga -->
     <div class="loading-overlay" id="loadingOverlay">
-        <div id="loadingText">Cargando el bosque...</div>
-        <div class="loading-bar-container" id="barContainer">
+        <div>Cargando el bosque...</div>
+        <div class="loading-bar-container">
             <div class="loading-bar" id="loadingBar"></div>
         </div>
         <button class="start-button" id="startButton">🎮 Toca para jugar</button>
-        <div class="rotate-warning" id="rotateWarning" style="display:none;">
-            <div>📱 Por favor, gira tu dispositivo</div>
-            <div style="font-size:3rem;">🔄</div>
-            <div>para disfrutar de la aventura</div>
-        </div>
     </div>
 
-    <div class="game-wrapper" id="gameWrapper">
+    <div class="game-wrapper">
         <canvas id="gameCanvas"></canvas>
         <div class="ui-top-left">
             <button class="fullscreen-btn" id="fullscreenBtn">⛶ Pantalla completa</button>
@@ -217,7 +208,7 @@
             <div class="score-badge">🍎 <span id="fruitCounter">0</span> / <span id="totalFruits">10</span></div>
             <label class="upload-label" for="heroPhoto">📸 Subir mi foto</label>
             <input type="file" id="heroPhoto" accept="image/*">
-            <button class="btn-icon" id="exitBtn">🚪 Salir</button>
+            <button class="btn-icon" id="resetBtn">🌲 Reiniciar</button>
         </div>
     </div>
 
@@ -237,70 +228,23 @@
 
             document.getElementById('totalFruits').textContent = FRUTAS_OBJETIVO;
 
-            // ---------- GESTIÓN DE CARGA Y ORIENTACIÓN ----------
+            // ---------- GESTIÓN DE CARGA ----------
             const totalAssets = 6 + 5; // 6 imágenes + 5 audios
             let assetsLoaded = 0;
             const loadingBar = document.getElementById('loadingBar');
             const startButton = document.getElementById('startButton');
             const loadingOverlay = document.getElementById('loadingOverlay');
-            const loadingText = document.getElementById('loadingText');
-            const barContainer = document.getElementById('barContainer');
-            const rotateWarning = document.getElementById('rotateWarning');
-            let loadComplete = false;
-
-            function updateOrientationUI() {
-                const isPortrait = window.innerWidth < window.innerHeight;
-                if (loadComplete) {
-                    if (isPortrait) {
-                        // Mostrar aviso de rotación en vez del botón jugar
-                        startButton.style.display = 'none';
-                        barContainer.style.display = 'none';
-                        loadingText.style.display = 'none';
-                        rotateWarning.style.display = 'flex';
-                    } else {
-                        // Mostrar botón jugar si está completo
-                        rotateWarning.style.display = 'none';
-                        loadingText.style.display = 'block';
-                        barContainer.style.display = 'none';
-                        startButton.style.display = 'block';
-                    }
-                } else {
-                    // Aún cargando, mostramos barra pero también el aviso si es portrait
-                    if (isPortrait) {
-                        rotateWarning.style.display = 'flex';
-                        loadingText.style.display = 'none';
-                        barContainer.style.display = 'none';
-                    } else {
-                        rotateWarning.style.display = 'none';
-                        loadingText.style.display = 'block';
-                        barContainer.style.display = 'block';
-                    }
-                }
-            }
 
             function assetLoaded() {
                 assetsLoaded++;
                 const percent = Math.floor((assetsLoaded / totalAssets) * 100);
                 loadingBar.style.width = percent + '%';
                 if (assetsLoaded === totalAssets) {
-                    loadComplete = true;
-                    updateOrientationUI();
+                    // Todo listo, mostrar botón
+                    startButton.style.display = 'block';
+                    loadingBar.parentElement.style.display = 'none'; // oculta barra
                 }
             }
-
-            // Escuchar cambios de orientación mientras carga o después
-            window.addEventListener('resize', () => {
-                resizeCanvas();
-                if (!audioReady) { // si todavía estamos en la pantalla de carga
-                    updateOrientationUI();
-                }
-            });
-            window.addEventListener('orientationchange', () => {
-                setTimeout(() => {
-                    resizeCanvas();
-                    if (!audioReady) updateOrientationUI();
-                }, 50);
-            });
 
             // ---------- AUDIO ----------
             let audioCtx = null;
@@ -332,40 +276,35 @@
                     .then(arrayBuffer => audioCtx.decodeAudioData(arrayBuffer))
                     .then(buffer => {
                         audioBuffers[name] = buffer;
-                        assetLoaded();
+                        assetLoaded(); // contar como recurso cargado
                     })
                     .catch(err => {
                         console.warn(`No se pudo cargar el audio "${name}":`, err);
-                        assetLoaded();
+                        assetLoaded(); // contar igual para no bloquear
                     });
             }
 
+            // Iniciar carga de audios inmediatamente
             if (audioCtx) {
                 Object.entries(audioFiles).forEach(([name, url]) => loadAudio(name, url));
             } else {
+                // Si no hay audioCtx, marcar los 5 audios como cargados
                 for (let i = 0; i < 5; i++) assetLoaded();
             }
 
+            // Activar audio al pulsar el botón de inicio
             function startGameAfterLoad() {
-                // Forzar orientación horizontal al iniciar
-                const isPortrait = window.innerWidth < window.innerHeight;
-                if (isPortrait) {
-                    // Si aún está en vertical, mostrar advertencia y no iniciar
-                    updateOrientationUI();
-                    return;
-                }
-
                 if (audioCtx) {
                     if (audioCtx.state === 'suspended') {
-                        audioCtx.resume().then(() => {
-                            console.log('AudioContext resumed');
-                        }).catch(e => console.warn('resume failed', e));
+                        audioCtx.resume();
                     }
+                    // Crear nodo de ganancia para música
                     if (!musicGain) {
                         musicGain = audioCtx.createGain();
                         musicGain.gain.value = 0.4;
                         musicGain.connect(audioCtx.destination);
                     }
+                    // Iniciar música si el buffer está listo
                     if (audioBuffers.background) {
                         playBackgroundMusic();
                     }
@@ -376,8 +315,6 @@
                 setTimeout(() => {
                     loadingOverlay.style.display = 'none';
                 }, 300);
-                // Mostrar canvas y empezar juego
-                canvas.style.display = 'block';
                 resetGame();
                 gameLoop();
             }
@@ -399,10 +336,6 @@
 
             function playSound(name, volume = 0.7) {
                 if (!audioReady || !audioCtx || !audioBuffers[name]) return;
-                // Pequeño truco para asegurar que el contexto no esté suspendido
-                if (audioCtx.state === 'suspended') {
-                    audioCtx.resume();
-                }
                 const source = audioCtx.createBufferSource();
                 const gainNode = audioCtx.createGain();
                 gainNode.gain.value = volume;
@@ -411,9 +344,6 @@
                 gainNode.connect(audioCtx.destination);
                 source.start();
             }
-
-            // Al iniciar, ocultar canvas hasta que se pulse jugar
-            canvas.style.display = 'none';
 
             function resizeCanvas() {
                 const displayW = window.innerWidth;
@@ -462,7 +392,7 @@
             const images = { background: null, wolf: null, bear: null, rabbit: null, fruit: null, heroDefault: null };
 
             function imageLoaded() {
-                assetLoaded();
+                assetLoaded(); // contar imagen
             }
 
             images.background = new Image();
@@ -498,12 +428,8 @@
             let currentHeroImage = images.heroDefault;
 
             function drawBackground() {
-                if (images.background?.complete) {
-                    ctx.drawImage(images.background, 0, 0, WORLD_W, WORLD_H);
-                } else {
-                    ctx.fillStyle = '#6f9e45';
-                    ctx.fillRect(0, 0, WORLD_W, WORLD_H);
-                }
+                if (images.background?.complete) ctx.drawImage(images.background, 0, 0, WORLD_W, WORLD_H);
+                else { ctx.fillStyle = '#6f9e45'; ctx.fillRect(0, 0, WORLD_W, WORLD_H); }
             }
             function drawWolf() {
                 if (images.wolf?.complete) ctx.drawImage(images.wolf, 620, WORLD_H - 600, 140, 220);
@@ -535,7 +461,7 @@
                 if (images.rabbit?.complete) ctx.drawImage(images.rabbit, 840, WORLD_H - 190, RABBIT_W, RABBIT_H);
                 ctx.font = "bold 34px 'Comic Neue'";
                 ctx.fillStyle = "#ffffff"; ctx.shadowBlur = 8;
-                ctx.fillText("🎉 ¡HOLA AMIGO! 🎉", 400, WORLD_H - 220);
+                ctx.fillText("🎉 ¡مرحبا ساره! 🎉", 400, WORLD_H - 220);
                 ctx.shadowBlur = 0; ctx.globalAlpha = 1;
             }
 
@@ -647,8 +573,6 @@
             }
 
             function render() {
-                // Limpiar canvas completamente antes de cada frame
-                ctx.clearRect(0, 0, WORLD_W, WORLD_H);
                 drawBackground();
                 drawWolf();
                 for (const f of wolfFruits) drawGiantFruit(f.x, f.y);
@@ -680,8 +604,6 @@
                 wolfThrowCooldown = 5;
                 particles = [];
                 stepTimer = 0;
-                // Limpiar canvas al resetear
-                ctx.clearRect(0, 0, WORLD_W, WORLD_H);
             }
 
             function setUserPhoto(file) {
@@ -742,39 +664,13 @@
             document.getElementById('heroPhoto').addEventListener('change', (e) => {
                 if (e.target.files[0]) setUserPhoto(e.target.files[0]);
             });
-
-            // Botón Salir
-            document.getElementById('exitBtn').addEventListener('click', () => {
-                window.close();
-                setTimeout(() => {
-                    if (!window.closed) {
-                        window.location.href = 'about:blank';
-                    }
-                }, 100);
-            });
-
-            // Botón de pantalla completa (intenta bloquear orientación)
+            document.getElementById('resetBtn').addEventListener('click', resetGame);
             document.getElementById('fullscreenBtn').addEventListener('click', () => {
-                if (document.fullscreenElement) {
-                    document.exitFullscreen();
-                    if (screen.orientation && screen.orientation.unlock) {
-                        screen.orientation.unlock();
-                    }
-                } else {
-                    document.documentElement.requestFullscreen().then(() => {
-                        if (screen.orientation && screen.orientation.lock) {
-                            screen.orientation.lock('landscape').catch(() => {
-                                updateOrientationUI();
-                            });
-                        }
-                    }).catch(() => {
-                        updateOrientationUI();
-                    });
-                }
+                if (document.fullscreenElement) document.exitFullscreen();
+                else document.documentElement.requestFullscreen();
             });
 
-            // Al cargar, verificar orientación
-            updateOrientationUI();
+            // Ya no se inicia automáticamente; esperamos al botón de inicio
         })();
     </script>
 </body>
