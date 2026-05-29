@@ -115,7 +115,11 @@ let keys = {};
 let frameCount = 0;
 
 const assets = { images: {}, sounds: {} };
-let assetsLoaded = { images: 0, sounds: 0, totalImages: 6, totalSounds: 4 };
+let imagesLoadedCount = 0;
+let soundsLoadedCount = 0;
+const TOTAL_IMAGES = 6;
+const TOTAL_SOUNDS = 4;
+let loadingTimedOut = false;
 
 const player = {
   x: GAME_WIDTH / 2 - 90,
@@ -146,47 +150,103 @@ let particles = [];
 let celebrationActive = false;
 let hitTimer = 0;
 
-const bonusItems = [];
-
-// --- Asset Loading ---
-function loadAssets() {
+// --- Asset Loading (REPARADO) ---
+function loadImages() {
   const imageFiles = [
-    { name: 'fondo', path: 'fondo_bosque.png' },        // ruta adaptada
-    { name: 'masha', path: 'masha_default.png' },       // ruta adaptada
-    { name: 'fruta', path: 'fruta.png' },               // ruta adaptada
-    { name: 'lobo', path: 'lobo_arbol.png' },           // ruta adaptada
-    { name: 'conejo', path: 'conejo_saludo.png' },      // ruta adaptada
-    { name: 'oso', path: 'oso_saludo.png' }             // ruta adaptada
-  ];
-
-  const soundFiles = [
-    { name: 'musica_fondo', path: 'musica_fondo.mp3' },         // ruta adaptada
-    { name: 'recoger_fruta', path: 'recoger_fruta.mp3' },       // ruta adaptada
-    { name: 'celebracion', path: 'celebracion.mp3' },           // ruta adaptada
-    { name: 'pasos', path: 'pasos.mp3' }                        // ruta adaptada
+    { name: 'fondo', path: 'fondo_bosque.png' },
+    { name: 'masha', path: 'masha_default.png' },
+    { name: 'fruta', path: 'fruta.png' },
+    { name: 'lobo', path: 'lobo_arbol.png' },
+    { name: 'conejo', path: 'conejo_saludo.png' },
+    { name: 'oso', path: 'oso_saludo.png' }
   ];
 
   imageFiles.forEach(file => {
     const img = new Image();
-    img.onload = () => { assetsLoaded.images++; checkReady(); };
-    img.onerror = () => { assetsLoaded.images++; checkReady(); };
+    img.onload = () => {
+      imagesLoadedCount++;
+      checkReady();
+    };
+    img.onerror = () => {
+      imagesLoadedCount++;
+      checkReady();
+    };
     img.src = file.path;
     assets.images[file.name] = img;
   });
+}
+
+function loadSounds() {
+  const soundFiles = [
+    { name: 'musica_fondo', path: 'musica_fondo.mp3' },
+    { name: 'recoger_fruta', path: 'recoger_fruta.mp3' },
+    { name: 'celebracion', path: 'celebracion.mp3' },
+    { name: 'pasos', path: 'pasos.mp3' }
+  ];
 
   soundFiles.forEach(file => {
     const audio = new Audio();
-    audio.addEventListener('canplaythrough', () => { assetsLoaded.sounds++; checkReady(); }, { once: true });
-    audio.addEventListener('error', () => { assetsLoaded.sounds++; checkReady(); }, { once: true });
+    
+    // Usamos 'canplay' que es más fiable que 'canplaythrough' en móviles
+    audio.addEventListener('canplay', () => {
+      if (!audio._counted) {
+        audio._counted = true;
+        soundsLoadedCount++;
+        checkReady();
+      }
+    }, { once: true });
+    
+    audio.addEventListener('loadeddata', () => {
+      if (!audio._counted) {
+        audio._counted = true;
+        soundsLoadedCount++;
+        checkReady();
+      }
+    }, { once: true });
+    
+    audio.addEventListener('error', () => {
+      if (!audio._counted) {
+        audio._counted = true;
+        soundsLoadedCount++;
+        checkReady();
+      }
+    }, { once: true });
+    
+    // Forzar carga
+    audio.preload = 'auto';
     audio.src = file.path;
+    audio.load();
     assets.sounds[file.name] = audio;
   });
 }
 
 function checkReady() {
-  if (assetsLoaded.images >= assetsLoaded.totalImages && assetsLoaded.sounds >= assetsLoaded.totalSounds) {
-    gameState = 'playing';
+  const totalLoaded = imagesLoadedCount + soundsLoadedCount;
+  const totalAssets = TOTAL_IMAGES + TOTAL_SOUNDS;
+  
+  // Si todas las imágenes están listas Y los sonidos también, arrancar
+  if (imagesLoadedCount >= TOTAL_IMAGES && soundsLoadedCount >= TOTAL_SOUNDS) {
+    startGame();
+    return;
   }
+  
+  // Si las imágenes están listas pero los sonidos no, arrancar igual
+  // (los sonidos se activarán cuando terminen de cargar)
+  if (imagesLoadedCount >= TOTAL_IMAGES && !loadingTimedOut) {
+    // Dar 3 segundos extra para los sonidos
+    setTimeout(() => {
+      if (gameState === 'loading') {
+        soundsLoadedCount = TOTAL_SOUNDS; // forzar conteo
+        startGame();
+      }
+    }, 3000);
+    loadingTimedOut = true;
+  }
+}
+
+function startGame() {
+  gameState = 'playing';
+  console.log('✅ Juego iniciado. Imágenes:', imagesLoadedCount, 'Sonidos:', soundsLoadedCount);
 }
 
 // --- Game Functions ---
@@ -214,16 +274,18 @@ function resetGame() {
   fruits = [];
   wolf.active = false;
   particles = [];
-  bonusItems.length = 0;
   celebrationActive = false;
   hitTimer = 0;
   player.x = GAME_WIDTH / 2 - 90;
   gameState = 'playing';
   messageEl.style.display = 'none';
   updateUI();
-  assets.sounds.musica_fondo.currentTime = 0;
-  const p = assets.sounds.musica_fondo.play();
-  if (p) p.catch(() => {});
+  // Música con protección
+  if (assets.sounds.musica_fondo && assets.sounds.musica_fondo.readyState >= 2) {
+    assets.sounds.musica_fondo.currentTime = 0;
+    const p = assets.sounds.musica_fondo.play();
+    if (p) p.catch(() => {});
+  }
 }
 
 function gameOver() {
@@ -232,7 +294,7 @@ function gameOver() {
   messageSub.textContent = 'El lobo te atrapó';
   messageRestart.textContent = 'Presiona ESPACIO para reiniciar';
   messageEl.style.display = 'block';
-  assets.sounds.musica_fondo.pause();
+  if (assets.sounds.musica_fondo) assets.sounds.musica_fondo.pause();
 }
 
 function winGame() {
@@ -242,10 +304,8 @@ function winGame() {
   messageRestart.textContent = 'Presiona ESPACIO para reiniciar';
   messageEl.style.display = 'block';
   celebrationActive = true;
-  assets.sounds.musica_fondo.pause();
-  const c = assets.sounds.celebracion.cloneNode(true);
-  c.volume = 0.5;
-  c.play().catch(() => {});
+  if (assets.sounds.musica_fondo) assets.sounds.musica_fondo.pause();
+  playSound('celebracion', 0.5);
   for (let i = 0; i < 100; i++) {
     particles.push({
       x: GAME_WIDTH / 2 + (Math.random() - 0.5) * 700,
@@ -272,15 +332,13 @@ function checkCollision(a, b) {
          a.y < b.y + b.height && a.y + a.height > b.y;
 }
 
-function vibrate(pattern) {
-  if (navigator.vibrate) navigator.vibrate(pattern);
-}
-
 function playSound(name, vol = 0.4) {
   try {
-    const s = assets.sounds[name].cloneNode(true);
-    s.volume = vol;
-    s.play();
+    const s = assets.sounds[name];
+    if (!s || s.readyState < 2) return; // no reproducir si no está listo
+    const clone = s.cloneNode(true);
+    clone.volume = vol;
+    clone.play().catch(() => {});
   } catch(e) {}
 }
 
@@ -346,7 +404,6 @@ function update() {
     if (checkCollision(player, wolf)) {
       lives--;
       updateUI();
-      vibrate(lives <= 0 ? [100, 100, 200] : 200);
       hitTimer = 30;
       for (let i = 0; i < 25; i++) {
         particles.push({
@@ -391,13 +448,20 @@ function draw() {
     ctx.font = '40px Arial';
     ctx.textAlign = 'center';
     ctx.fillText('🎮 Cargando...', GAME_WIDTH / 2, GAME_HEIGHT / 2 - 40);
-    const total = assetsLoaded.totalImages + assetsLoaded.totalSounds;
-    const loaded = assetsLoaded.images + assetsLoaded.sounds;
+    const total = TOTAL_IMAGES + TOTAL_SOUNDS;
+    const loaded = imagesLoadedCount + soundsLoadedCount;
     const pct = Math.min(1, loaded / total);
     ctx.fillStyle = '#333';
     ctx.fillRect(GAME_WIDTH / 2 - 180, GAME_HEIGHT / 2 + 15, 360, 30);
     ctx.fillStyle = '#e94560';
     ctx.fillRect(GAME_WIDTH / 2 - 180, GAME_HEIGHT / 2 + 15, 360 * pct, 30);
+    
+    // Si ya pasó el timeout, mostrar mensaje
+    if (imagesLoadedCount >= TOTAL_IMAGES && loadingTimedOut) {
+      ctx.fillStyle = '#ffd93d';
+      ctx.font = '18px Arial';
+      ctx.fillText('Cargando sonidos...', GAME_WIDTH / 2, GAME_HEIGHT / 2 + 70);
+    }
     return;
   }
 
@@ -427,10 +491,6 @@ function draw() {
       ctx.beginPath();
       ctx.arc(f.x + f.width / 2, f.y + f.height / 2, f.width / 2, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = '#ff3b3b';
-      ctx.beginPath();
-      ctx.arc(f.x + f.width / 2 - 6, f.y + f.height / 2 - 6, f.width / 5, 0, Math.PI * 2);
-      ctx.fill();
     }
     ctx.restore();
   });
@@ -443,13 +503,6 @@ function draw() {
       const drawX = wolf.direction < 0 ? -wolf.x - wolf.width : wolf.x;
       ctx.drawImage(assets.images.lobo, drawX, wolf.y, wolf.width, wolf.height);
       ctx.restore();
-    } else {
-      ctx.fillStyle = '#555';
-      ctx.fillRect(wolf.x, wolf.y, wolf.width, wolf.height);
-      ctx.fillStyle = '#333';
-      ctx.beginPath();
-      ctx.arc(wolf.x + (wolf.direction > 0 ? wolf.width - 25 : 25), wolf.y + 30, 14, 0, Math.PI * 2);
-      ctx.fill();
     }
   }
 
@@ -459,13 +512,6 @@ function draw() {
   ctx.imageSmoothingQuality = 'high';
   if (assets.images.masha.complete && assets.images.masha.naturalWidth > 0) {
     ctx.drawImage(assets.images.masha, player.x, player.y, player.width, player.height);
-  } else {
-    ctx.fillStyle = '#ff69b4';
-    ctx.fillRect(player.x, player.y, player.width, player.height);
-    ctx.fillStyle = '#ff1493';
-    ctx.beginPath();
-    ctx.arc(player.x + player.width / 2, player.y + player.height / 3, 24, 0, Math.PI * 2);
-    ctx.fill();
   }
   ctx.restore();
 
@@ -493,15 +539,12 @@ function draw() {
     const bounce = Math.sin(frameCount * 0.06) * 12;
     const osoWidth = 160, osoHeight = 200;
     const conejoWidth = 130, conejoHeight = 170;
-    // Oso a la izquierda
     if (assets.images.oso.complete && assets.images.oso.naturalWidth > 0) {
       ctx.drawImage(assets.images.oso, 60, GAME_HEIGHT / 2 - osoHeight / 2 + bounce, osoWidth, osoHeight);
     }
-    // Conejo a la derecha
     if (assets.images.conejo.complete && assets.images.conejo.naturalWidth > 0) {
       ctx.drawImage(assets.images.conejo, GAME_WIDTH - 60 - conejoWidth, GAME_HEIGHT / 2 - conejoHeight / 2 - bounce, conejoWidth, conejoHeight);
     }
-    // Texto extra de celebración
     ctx.fillStyle = 'rgba(255, 215, 0, 0.6)';
     ctx.font = 'bold 28px Arial';
     ctx.textAlign = 'center';
@@ -528,7 +571,7 @@ document.addEventListener('keyup', (e) => {
   keys[e.code] = false;
 });
 
-// Touch controls — seguimiento directo del dedo
+// Touch controls
 function movePlayerToTouch(clientX) {
   const rect = canvas.getBoundingClientRect();
   const scaleX = GAME_WIDTH / rect.width;
@@ -580,7 +623,17 @@ window.addEventListener('orientationchange', () => setTimeout(resizeGame, 300));
 // --- Start ---
 updateUI();
 resizeGame();
-loadAssets();
+loadImages();
+loadSounds();
+
+// Timeout de seguridad: si después de 8 segundos no han cargado los sonidos, arrancar igual
+setTimeout(() => {
+  if (gameState === 'loading') {
+    soundsLoadedCount = TOTAL_SOUNDS;
+    startGame();
+  }
+}, 8000);
+
 gameLoop();
 </script>
 </body>
