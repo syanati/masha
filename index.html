@@ -87,7 +87,7 @@
     <div class="sub" id="messageSub"></div>
     <div class="restart" id="messageRestart"></div>
   </div>
-  <div id="controls-info">← →  o  A D  |  ESPACIO para reiniciar</div>
+  <div id="controls-info"></div>
 </div>
 
 <script>
@@ -115,7 +115,7 @@ let keys = {};
 let frameCount = 0;
 
 const assets = { images: {}, sounds: {} };
-let assetsLoaded = { images: 0, sounds: 0, totalImages: 6, totalSounds: 5 };
+let assetsLoaded = { images: 0, sounds: 0, totalImages: 6, totalSounds: 4 };
 
 const player = {
   x: GAME_WIDTH / 2 - 90,
@@ -163,8 +163,7 @@ function loadAssets() {
     { name: 'musica_fondo', path: 'musica_fondo.mp3' },         // ruta adaptada
     { name: 'recoger_fruta', path: 'recoger_fruta.mp3' },       // ruta adaptada
     { name: 'celebracion', path: 'celebracion.mp3' },           // ruta adaptada
-    { name: 'pasos', path: 'pasos.mp3' },                       // ruta adaptada
-    { name: 'lanzar_fruta', path: 'lanzar_fruta.mp3' }          // añadido
+    { name: 'pasos', path: 'pasos.mp3' }                        // ruta adaptada
   ];
 
   imageFiles.forEach(file => {
@@ -273,6 +272,10 @@ function checkCollision(a, b) {
          a.y < b.y + b.height && a.y + a.height > b.y;
 }
 
+function vibrate(pattern) {
+  if (navigator.vibrate) navigator.vibrate(pattern);
+}
+
 function playSound(name, vol = 0.4) {
   try {
     const s = assets.sounds[name].cloneNode(true);
@@ -343,6 +346,7 @@ function update() {
     if (checkCollision(player, wolf)) {
       lives--;
       updateUI();
+      vibrate(lives <= 0 ? [100, 100, 200] : 200);
       hitTimer = 30;
       for (let i = 0; i < 25; i++) {
         particles.push({
@@ -524,26 +528,37 @@ document.addEventListener('keyup', (e) => {
   keys[e.code] = false;
 });
 
-// Touch controls
-let touchStartX = 0;
+// Touch controls — seguimiento directo del dedo
+function movePlayerToTouch(clientX) {
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = GAME_WIDTH / rect.width;
+  const canvasX = (clientX - rect.left) * scaleX;
+  player.x = canvasX - player.width / 2;
+  player.x = Math.max(0, Math.min(GAME_WIDTH - player.width, player.x));
+}
 canvas.addEventListener('touchstart', (e) => {
   e.preventDefault();
-  touchStartX = e.touches[0].clientX;
-  if (gameState === 'won' || gameState === 'lost') resetGame();
+  if (gameState === 'won' || gameState === 'lost') { resetGame(); return; }
+  movePlayerToTouch(e.touches[0].clientX);
 });
 canvas.addEventListener('touchmove', (e) => {
   e.preventDefault();
-  const touchX = e.touches[0].clientX;
-  const diff = touchX - touchStartX;
-  if (diff > 15) { keys['ArrowRight'] = true; keys['ArrowLeft'] = false; }
-  else if (diff < -15) { keys['ArrowLeft'] = true; keys['ArrowRight'] = false; }
-  else { keys['ArrowLeft'] = false; keys['ArrowRight'] = false; }
-  touchStartX = touchX;
+  movePlayerToTouch(e.touches[0].clientX);
 });
 canvas.addEventListener('touchend', (e) => {
-  keys['ArrowLeft'] = false;
-  keys['ArrowRight'] = false;
+  e.preventDefault();
 });
+
+// --- Mobile detection & controls hint ---
+const isMobile = /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+  || ('ontouchstart' in window && window.innerWidth < 1024);
+
+const controlsInfo = document.getElementById('controls-info');
+if (isMobile) {
+  controlsInfo.textContent = 'Toca la pantalla y arrastra para mover a Masha  |  Toca para reiniciar';
+} else {
+  controlsInfo.textContent = '← →  o  A D  |  ESPACIO para reiniciar';
+}
 
 // --- Resize for mobile ---
 function resizeGame() {
@@ -557,6 +572,7 @@ function resizeGame() {
   if (h > maxH) { h = maxH; w = h * ratio; }
   const container = document.getElementById('gameContainer');
   container.style.width = w + 'px';
+  container.style.height = h + 'px';
 }
 window.addEventListener('resize', resizeGame);
 window.addEventListener('orientationchange', () => setTimeout(resizeGame, 300));
