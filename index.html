@@ -1,677 +1,571 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Masha y el Oso – Aventura Gigante</title>
-    <link rel="icon" type="image/png" href="masha_default.png" sizes="any">
-    <link rel="apple-touch-icon" href="masha_default.png">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="theme-color" content="#1a3a1a">
-    <meta name="msapplication-TileImage" content="masha_default.png">
-    <meta name="msapplication-TileColor" content="#1a3a1a">
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            -webkit-tap-highlight-color: transparent;
-            user-select: none;
-        }
-        html, body {
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            background: #000;
-            font-family: 'Segoe UI', 'Comic Neue', cursive;
-            height: 100dvh;
-        }
-        .rotate-warning {
-            display: none;
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.9);
-            color: white;
-            z-index: 9999;
-            justify-content: center;
-            align-items: center;
-            font-size: clamp(1rem, 5vw, 1.8rem);
-            text-align: center;
-            flex-direction: column;
-            gap: 20px;
-        }
-        @media (orientation: portrait) {
-            .rotate-warning { display: flex; }
-            .game-wrapper, .loading-overlay { display: none; }
-        }
-
-        /* Overlay de carga */
-        .loading-overlay {
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.85);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            z-index: 10000;
-            color: white;
-            font-size: 1.5rem;
-            transition: opacity 0.3s;
-        }
-        .loading-bar-container {
-            width: 80%;
-            max-width: 400px;
-            height: 20px;
-            background: #333;
-            border-radius: 10px;
-            margin: 20px 0;
-            overflow: hidden;
-        }
-        .loading-bar {
-            width: 0%;
-            height: 100%;
-            background: #f3a546;
-            border-radius: 10px;
-            transition: width 0.2s;
-        }
-        .start-button {
-            display: none;
-            background: #f3a546;
-            border: none;
-            color: #2d1b0c;
-            font-weight: bold;
-            padding: 1.5vmin 4vmin;
-            border-radius: 5vmin;
-            font-size: clamp(1.2rem, 4vmin, 2rem);
-            cursor: pointer;
-            box-shadow: 0 0.5vmin 0 #b85e1a;
-            margin-top: 20px;
-            touch-action: manipulation;
-        }
-        .start-button:active {
-            transform: translateY(3px);
-            box-shadow: 0 1px 0 #b85e1a;
-        }
-
-        .game-wrapper {
-            position: relative;
-            width: 100%;
-            height: 100%;
-            background: #000;
-        }
-        canvas {
-            display: block;
-            position: absolute;
-            top: 0; left: 0;
-            width: 100%;
-            height: 100%;
-            touch-action: none;
-        }
-        .ui-top-left {
-            position: absolute;
-            top: 1.5vmin;
-            left: 1.5vmin;
-            z-index: 10;
-        }
-        .ui-top-right {
-            position: absolute;
-            top: 1.5vmin;
-            right: 1.5vmin;
-            z-index: 10;
-            display: flex;
-            flex-direction: column;
-            align-items: flex-end;
-            gap: 1.5vmin;
-        }
-        .score-badge {
-            background: rgba(254,245,224,0.9);
-            padding: 1.2vmin 3vmin;
-            border-radius: 3vmin;
-            font-size: clamp(1rem, 4vmin, 2rem);
-            font-weight: bold;
-            color: #c73f1e;
-            box-shadow: 0 0.5vmin 1.5vmin rgba(0,0,0,0.25);
-            backdrop-filter: blur(4px);
-        }
-        .btn-icon {
-            background: rgba(243,165,70,0.9);
-            border: none;
-            color: #2d1b0c;
-            font-weight: bold;
-            padding: 1.5vmin 3vmin;
-            border-radius: 3vmin;
-            font-size: clamp(0.9rem, 3.5vmin, 1.4rem);
-            cursor: pointer;
-            box-shadow: 0 0.5vmin 0 #b85e1a;
-            backdrop-filter: blur(4px);
-            touch-action: manipulation;
-            text-decoration: none;
-            line-height: 1.2;
-            white-space: nowrap;
-        }
-        .btn-icon:active {
-            transform: translateY(3px);
-            box-shadow: 0 1px 0 #b85e1a;
-        }
-        .upload-label {
-            background: rgba(243,165,70,0.9);
-            padding: 1.5vmin 3vmin;
-            border-radius: 3vmin;
-            font-weight: bold;
-            cursor: pointer;
-            color: #2d1b0c;
-            font-size: clamp(0.9rem, 3.5vmin, 1.4rem);
-            box-shadow: 0 0.5vmin 0 #b85e1a;
-            backdrop-filter: blur(4px);
-            display: inline-block;
-            touch-action: manipulation;
-        }
-        .upload-label:active {
-            transform: translateY(3px);
-            box-shadow: 0 1px 0 #b85e1a;
-        }
-        #heroPhoto { display: none; }
-        .fullscreen-btn {
-            background: rgba(0,0,0,0.5);
-            color: white;
-            border: 1px solid rgba(255,255,255,0.6);
-            padding: 1.2vmin 2.5vmin;
-            border-radius: 2vmin;
-            font-size: clamp(0.8rem, 3vmin, 1.2rem);
-            cursor: pointer;
-            backdrop-filter: blur(4px);
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<link rel="icon" href="masha_default.png" type="image/png">
+<title>Masha recolecta frutas</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100dvh;
+    background: linear-gradient(135deg, #1a1a2e, #16213e);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    overflow: hidden;
+    touch-action: none;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  #gameContainer {
+    position: relative;
+    border: 4px solid #e94560;
+    border-radius: 16px;
+    box-shadow: 0 0 60px rgba(233, 69, 96, 0.4);
+    overflow: hidden;
+    width: 1400px;
+    max-width: min(100vw - 8px, calc(100dvh - 8px) * 1.647);
+  }
+  canvas {
+    display: block;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 1400 / 850;
+    image-rendering: auto;
+    touch-action: none;
+  }
+  #ui {
+    position: absolute; top: 0; left: 0; right: 0;
+    padding: 15px 30px;
+    display: flex; justify-content: space-between; align-items: center;
+    pointer-events: none; z-index: 10;
+  }
+  #score {
+    color: white; font-size: clamp(14px, 2.4vw, 32px); font-weight: bold;
+    text-shadow: 2px 2px 6px rgba(0,0,0,0.9);
+    background: rgba(0,0,0,0.55); padding: clamp(4px, 0.8vw, 10px) clamp(8px, 1.5vw, 20px); border-radius: clamp(4px, 0.8vw, 10px);
+    letter-spacing: 1px;
+  }
+  #lives {
+    font-size: clamp(14px, 2.4vw, 32px);
+    text-shadow: 2px 2px 6px rgba(0,0,0,0.9);
+    background: rgba(0,0,0,0.55); padding: clamp(4px, 0.8vw, 10px) clamp(8px, 1.5vw, 20px); border-radius: clamp(4px, 0.8vw, 10px);
+  }
+  #message {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    color: white; font-size: clamp(24px, 5vw, 64px); font-weight: bold;
+    text-shadow: 4px 4px 8px rgba(0,0,0,0.95);
+    text-align: center; pointer-events: none; z-index: 20;
+    display: none;
+    line-height: 1.4;
+  }
+  #message .sub { font-size: clamp(14px, 2.5vw, 32px); margin-top: clamp(4px, 0.9vw, 12px); font-weight: normal; }
+  #message .restart { font-size: clamp(12px, 2vw, 26px); margin-top: clamp(8px, 1.8vw, 24px); color: #ffd93d; font-weight: normal; }
+  #controls-info {
+    position: absolute; bottom: clamp(4px, 1vw, 14px); left: 50%;
+    transform: translateX(-50%);
+    color: rgba(255,255,255,0.45); font-size: clamp(10px, 1.4vw, 18px);
+    pointer-events: none; z-index: 10;
+    background: rgba(0,0,0,0.3); padding: 6px 16px; border-radius: 6px;
+    white-space: nowrap;
+  }
+</style>
 </head>
 <body>
-    <div class="rotate-warning">
-        <div>📱 Gira tu dispositivo a modo horizontal para jugar</div>
-    </div>
+<div id="gameContainer">
+  <canvas id="gameCanvas"></canvas>
+  <div id="ui">
+    <div id="score">🍎 0 / 10</div>
+    <div id="lives">❤️❤️❤️</div>
+  </div>
+  <div id="message">
+    <div id="messageText"></div>
+    <div class="sub" id="messageSub"></div>
+    <div class="restart" id="messageRestart"></div>
+  </div>
+  <div id="controls-info">← →  o  A D  |  ESPACIO para reiniciar</div>
+</div>
 
-    <!-- Overlay de carga -->
-    <div class="loading-overlay" id="loadingOverlay">
-        <div>Cargando el bosque...</div>
-        <div class="loading-bar-container">
-            <div class="loading-bar" id="loadingBar"></div>
-        </div>
-        <button class="start-button" id="startButton">🎮 Toca para jugar</button>
-    </div>
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const scoreEl = document.getElementById('score');
+const livesEl = document.getElementById('lives');
+const messageEl = document.getElementById('message');
+const messageText = document.getElementById('messageText');
+const messageSub = document.getElementById('messageSub');
+const messageRestart = document.getElementById('messageRestart');
 
-    <div class="game-wrapper">
-        <canvas id="gameCanvas"></canvas>
-        <div class="ui-top-left">
-            <button class="fullscreen-btn" id="fullscreenBtn">⛶ Pantalla completa</button>
-        </div>
-        <div class="ui-top-right">
-            <div class="score-badge">🍎 <span id="fruitCounter">0</span> / <span id="totalFruits">10</span></div>
-            <label class="upload-label" for="heroPhoto">📸 Subir mi foto</label>
-            <input type="file" id="heroPhoto" accept="image/*">
-            <button class="btn-icon" id="resetBtn">🌲 Reiniciar</button>
-        </div>
-    </div>
+canvas.width = 1400;
+canvas.height = 850;
 
-    <script>
-        (function(){
-            const canvas = document.getElementById('gameCanvas');
-            const ctx = canvas.getContext('2d');
-            const WORLD_W = 1100;
-            const WORLD_H = 620;
+const GAME_WIDTH = 1400;
+const GAME_HEIGHT = 850;
+const TARGET_SCORE = 10;
+const MAX_LIVES = 3;
 
-            // ===================== CONFIGURACIÓN =====================
-            const FRUTAS_OBJETIVO = 30;
-            const MOVE_SPEED = 16.8;
-            const FRUIT_SPEED_MULTIPLIER = 1.6;
-            const THROW_INTERVAL = 28;
-            // =========================================================
+let gameState = 'loading';
+let score = 0;
+let lives = MAX_LIVES;
+let keys = {};
+let frameCount = 0;
 
-            document.getElementById('totalFruits').textContent = FRUTAS_OBJETIVO;
+const assets = { images: {}, sounds: {} };
+let assetsLoaded = { images: 0, sounds: 0, totalImages: 6, totalSounds: 5 };
 
-            // ---------- GESTIÓN DE CARGA ----------
-            const totalAssets = 6 + 5; // 6 imágenes + 5 audios
-            let assetsLoaded = 0;
-            const loadingBar = document.getElementById('loadingBar');
-            const startButton = document.getElementById('startButton');
-            const loadingOverlay = document.getElementById('loadingOverlay');
+const player = {
+  x: GAME_WIDTH / 2 - 90,
+  y: GAME_HEIGHT - 270,
+  width: 180,
+  height: 240,
+  speed: 7,
+  dx: 0
+};
 
-            function assetLoaded() {
-                assetsLoaded++;
-                const percent = Math.floor((assetsLoaded / totalAssets) * 100);
-                loadingBar.style.width = percent + '%';
-                if (assetsLoaded === totalAssets) {
-                    // Todo listo, mostrar botón
-                    startButton.style.display = 'block';
-                    loadingBar.parentElement.style.display = 'none'; // oculta barra
-                }
-            }
+let fruits = [];
+const FRUIT_SIZE = 80;
+let fruitSpawnTimer = 0;
 
-            // ---------- AUDIO ----------
-            let audioCtx = null;
-            let musicGain = null;
-            let musicSource = null;
-            let audioReady = false;
+const wolf = {
+  x: -220,
+  y: 120,
+  width: 210,
+  height: 210,
+  speed: 3,
+  active: false,
+  timer: 0,
+  direction: 1,
+  moveTimer: 0
+};
 
-            const audioFiles = {
-                background: 'musica_fondo.mp3',
-                lanzar: 'lanzar_fruta.mp3',
-                recoger: 'recoger_fruta.mp3',
-                celebracion: 'celebracion.mp3',
-                pasos: 'pasos.mp3'
-            };
-            const audioBuffers = {};
+let particles = [];
+let celebrationActive = false;
+let hitTimer = 0;
 
-            try {
-                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            } catch (e) {
-                console.warn('Audio no soportado');
-            }
+const bonusItems = [];
 
-            function loadAudio(name, url) {
-                return fetch(url)
-                    .then(response => {
-                        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                        return response.arrayBuffer();
-                    })
-                    .then(arrayBuffer => audioCtx.decodeAudioData(arrayBuffer))
-                    .then(buffer => {
-                        audioBuffers[name] = buffer;
-                        assetLoaded(); // contar como recurso cargado
-                    })
-                    .catch(err => {
-                        console.warn(`No se pudo cargar el audio "${name}":`, err);
-                        assetLoaded(); // contar igual para no bloquear
-                    });
-            }
+// --- Asset Loading ---
+function loadAssets() {
+  const imageFiles = [
+    { name: 'fondo', path: 'fondo_bosque.png' },        // ruta adaptada
+    { name: 'masha', path: 'masha_default.png' },       // ruta adaptada
+    { name: 'fruta', path: 'fruta.png' },               // ruta adaptada
+    { name: 'lobo', path: 'lobo_arbol.png' },           // ruta adaptada
+    { name: 'conejo', path: 'conejo_saludo.png' },      // ruta adaptada
+    { name: 'oso', path: 'oso_saludo.png' }             // ruta adaptada
+  ];
 
-            // Iniciar carga de audios inmediatamente
-            if (audioCtx) {
-                Object.entries(audioFiles).forEach(([name, url]) => loadAudio(name, url));
-            } else {
-                // Si no hay audioCtx, marcar los 5 audios como cargados
-                for (let i = 0; i < 5; i++) assetLoaded();
-            }
+  const soundFiles = [
+    { name: 'musica_fondo', path: 'musica_fondo.mp3' },         // ruta adaptada
+    { name: 'recoger_fruta', path: 'recoger_fruta.mp3' },       // ruta adaptada
+    { name: 'celebracion', path: 'celebracion.mp3' },           // ruta adaptada
+    { name: 'pasos', path: 'pasos.mp3' },                       // ruta adaptada
+    { name: 'lanzar_fruta', path: 'lanzar_fruta.mp3' }          // añadido
+  ];
 
-            // Activar audio al pulsar el botón de inicio
-            function startGameAfterLoad() {
-                if (audioCtx) {
-                    if (audioCtx.state === 'suspended') {
-                        audioCtx.resume();
-                    }
-                    // Crear nodo de ganancia para música
-                    if (!musicGain) {
-                        musicGain = audioCtx.createGain();
-                        musicGain.gain.value = 0.4;
-                        musicGain.connect(audioCtx.destination);
-                    }
-                    // Iniciar música si el buffer está listo
-                    if (audioBuffers.background) {
-                        playBackgroundMusic();
-                    }
-                }
-                audioReady = true;
-                // Ocultar overlay de carga
-                loadingOverlay.style.opacity = '0';
-                setTimeout(() => {
-                    loadingOverlay.style.display = 'none';
-                }, 300);
-                resetGame();
-                gameLoop();
-            }
+  imageFiles.forEach(file => {
+    const img = new Image();
+    img.onload = () => { assetsLoaded.images++; checkReady(); };
+    img.onerror = () => { assetsLoaded.images++; checkReady(); };
+    img.src = file.path;
+    assets.images[file.name] = img;
+  });
 
-            document.getElementById('startButton').addEventListener('click', startGameAfterLoad);
+  soundFiles.forEach(file => {
+    const audio = new Audio();
+    audio.addEventListener('canplaythrough', () => { assetsLoaded.sounds++; checkReady(); }, { once: true });
+    audio.addEventListener('error', () => { assetsLoaded.sounds++; checkReady(); }, { once: true });
+    audio.src = file.path;
+    assets.sounds[file.name] = audio;
+  });
+}
 
-            function playBackgroundMusic() {
-                if (!audioCtx || !audioBuffers.background || !musicGain) return;
-                if (musicSource) {
-                    musicSource.stop();
-                    musicSource.disconnect();
-                }
-                musicSource = audioCtx.createBufferSource();
-                musicSource.buffer = audioBuffers.background;
-                musicSource.loop = true;
-                musicSource.connect(musicGain);
-                musicSource.start();
-            }
+function checkReady() {
+  if (assetsLoaded.images >= assetsLoaded.totalImages && assetsLoaded.sounds >= assetsLoaded.totalSounds) {
+    gameState = 'playing';
+  }
+}
 
-            function playSound(name, volume = 0.7) {
-                if (!audioReady || !audioCtx || !audioBuffers[name]) return;
-                const source = audioCtx.createBufferSource();
-                const gainNode = audioCtx.createGain();
-                gainNode.gain.value = volume;
-                source.buffer = audioBuffers[name];
-                source.connect(gainNode);
-                gainNode.connect(audioCtx.destination);
-                source.start();
-            }
+// --- Game Functions ---
+function spawnFruit() {
+  const x = 20 + Math.random() * (GAME_WIDTH - 40 - FRUIT_SIZE);
+  fruits.push({
+    x, y: -FRUIT_SIZE, width: FRUIT_SIZE, height: FRUIT_SIZE,
+    speed: 1.2 + Math.random() * 2.8,
+    wobble: Math.random() * Math.PI * 2
+  });
+}
 
-            function resizeCanvas() {
-                const displayW = window.innerWidth;
-                const displayH = window.innerHeight;
-                const dpr = window.devicePixelRatio || 1;
-                canvas.width = displayW * dpr;
-                canvas.height = displayH * dpr;
-                const scaleX = displayW / WORLD_W;
-                const scaleY = displayH / WORLD_H;
-                const scale = Math.min(scaleX, scaleY);
-                const offsetX = (displayW - WORLD_W * scale) / 2;
-                const offsetY = (displayH - WORLD_H * scale) / 2;
-                ctx.setTransform(1, 0, 0, 1, 0, 0);
-                ctx.setTransform(dpr * scale, 0, 0, dpr * scale, dpr * offsetX, dpr * offsetY);
-            }
-            window.addEventListener('resize', resizeCanvas);
-            window.addEventListener('orientationchange', () => setTimeout(resizeCanvas, 50));
-            resizeCanvas();
+function spawnWolf() {
+  wolf.active = true;
+  wolf.x = Math.random() < 0.5 ? -wolf.width : GAME_WIDTH;
+  wolf.y = 100 + Math.random() * (GAME_HEIGHT - 400);
+  wolf.direction = wolf.x < 0 ? 1 : -1;
+  wolf.timer = 0;
+  wolf.moveTimer = 0;
+}
 
-            const heroW = 180;
-            const heroH = 200;
-            let heroX = WORLD_W/2 - heroW/2;
-            const groundY = WORLD_H - heroH - 15;
-            let heroY = groundY;
+function resetGame() {
+  score = 0;
+  lives = MAX_LIVES;
+  fruits = [];
+  wolf.active = false;
+  particles = [];
+  bonusItems.length = 0;
+  celebrationActive = false;
+  hitTimer = 0;
+  player.x = GAME_WIDTH / 2 - 90;
+  gameState = 'playing';
+  messageEl.style.display = 'none';
+  updateUI();
+  assets.sounds.musica_fondo.currentTime = 0;
+  const p = assets.sounds.musica_fondo.play();
+  if (p) p.catch(() => {});
+}
 
-            const FRUIT_SIZE = 120;
-            const BEAR_W = 260;
-            const BEAR_H = 300;
-            const RABBIT_W = 230;
-            const RABBIT_H = 350;
+function gameOver() {
+  gameState = 'lost';
+  messageText.textContent = '💀 ¡Perdiste!';
+  messageSub.textContent = 'El lobo te atrapó';
+  messageRestart.textContent = 'Presiona ESPACIO para reiniciar';
+  messageEl.style.display = 'block';
+  assets.sounds.musica_fondo.pause();
+}
 
-            let leftPressed = false;
-            let rightPressed = false;
+function winGame() {
+  gameState = 'won';
+  messageText.textContent = '🎉 ¡Ganaste!';
+  messageSub.textContent = 'Recolectaste todas las frutas';
+  messageRestart.textContent = 'Presiona ESPACIO para reiniciar';
+  messageEl.style.display = 'block';
+  celebrationActive = true;
+  assets.sounds.musica_fondo.pause();
+  const c = assets.sounds.celebracion.cloneNode(true);
+  c.volume = 0.5;
+  c.play().catch(() => {});
+  for (let i = 0; i < 100; i++) {
+    particles.push({
+      x: GAME_WIDTH / 2 + (Math.random() - 0.5) * 700,
+      y: GAME_HEIGHT / 2 + (Math.random() - 0.5) * 500,
+      vx: (Math.random() - 0.5) * 8,
+      vy: (Math.random() - 0.5) * 8 - 3,
+      size: 5 + Math.random() * 16,
+      color: ['#ff6b6b', '#ffd93d', '#6bcb77', '#4d96ff', '#ff6bff', '#ff9f43'][Math.floor(Math.random() * 6)],
+      life: 1
+    });
+  }
+}
 
-            let wolfFruits = [];
-            let fruitsCollected = 0;
-            let wolfThrowCooldown = 0;
-            let specialEventActive = false;
-            let eventTimer = 0;
-            const EVENT_DURATION = 100;
-            let particles = [];
+function updateUI() {
+  scoreEl.textContent = `🍎 ${score} / ${TARGET_SCORE}`;
+  let hearts = '';
+  for (let i = 0; i < lives; i++) hearts += '❤️';
+  for (let i = lives; i < MAX_LIVES; i++) hearts += '🖤';
+  livesEl.textContent = hearts;
+}
 
-            let stepTimer = 0;
-            const STEP_INTERVAL = 15;
+function checkCollision(a, b) {
+  return a.x < b.x + b.width && a.x + a.width > b.x &&
+         a.y < b.y + b.height && a.y + a.height > b.y;
+}
 
-            const images = { background: null, wolf: null, bear: null, rabbit: null, fruit: null, heroDefault: null };
+function playSound(name, vol = 0.4) {
+  try {
+    const s = assets.sounds[name].cloneNode(true);
+    s.volume = vol;
+    s.play();
+  } catch(e) {}
+}
 
-            function imageLoaded() {
-                assetLoaded(); // contar imagen
-            }
+// --- Update ---
+function update() {
+  frameCount++;
 
-            images.background = new Image();
-            images.background.onload = imageLoaded;
-            images.background.onerror = () => { console.warn("Error fondo"); imageLoaded(); };
-            images.background.src = "fondo_bosque.png";
+  if (gameState === 'loading') return;
 
-            images.wolf = new Image();
-            images.wolf.onload = imageLoaded;
-            images.wolf.onerror = () => { console.warn("Error lobo"); imageLoaded(); };
-            images.wolf.src = "lobo_arbol.png";
+  if (gameState !== 'playing') {
+    if (celebrationActive) {
+      particles = particles.filter(p => {
+        p.x += p.vx; p.y += p.vy; p.vy += 0.06;
+        p.life -= 0.007;
+        return p.life > 0;
+      });
+    }
+    return;
+  }
 
-            images.bear = new Image();
-            images.bear.onload = imageLoaded;
-            images.bear.onerror = () => { console.warn("Error oso"); imageLoaded(); };
-            images.bear.src = "oso_saludo.png";
+  // Player movement
+  player.dx = 0;
+  if (keys['ArrowLeft'] || keys['KeyA']) player.dx = -player.speed;
+  if (keys['ArrowRight'] || keys['KeyD']) player.dx = player.speed;
+  player.x += player.dx;
+  player.x = Math.max(0, Math.min(GAME_WIDTH - player.width, player.x));
 
-            images.rabbit = new Image();
-            images.rabbit.onload = imageLoaded;
-            images.rabbit.onerror = () => { console.warn("Error conejo"); imageLoaded(); };
-            images.rabbit.src = "conejo_saludo.png";
+  // Spawn fruits
+  fruitSpawnTimer++;
+  const spawnRate = Math.max(25, 70 - Math.floor(score / 2) * 5);
+  if (fruitSpawnTimer >= spawnRate) {
+    fruitSpawnTimer = 0;
+    spawnFruit();
+  }
 
-            images.fruit = new Image();
-            images.fruit.onload = imageLoaded;
-            images.fruit.onerror = () => { console.warn("Error fruta"); imageLoaded(); };
-            images.fruit.src = "fruta.png";
+  // Update fruits
+  for (let i = fruits.length - 1; i >= 0; i--) {
+    const f = fruits[i];
+    f.y += f.speed;
+    f.wobble += 0.04;
+    f.x += Math.sin(f.wobble) * 0.5;
 
-            images.heroDefault = new Image();
-            images.heroDefault.onload = imageLoaded;
-            images.heroDefault.onerror = () => { console.warn("Error heroe default"); imageLoaded(); };
-            images.heroDefault.src = "masha_default.png";
+    if (checkCollision(player, f)) {
+      score++;
+      fruits.splice(i, 1);
+      updateUI();
+      playSound('recoger_fruta', 0.35);
+      if (score >= TARGET_SCORE) { winGame(); return; }
+      continue;
+    }
+    if (f.y > GAME_HEIGHT + 30) fruits.splice(i, 1);
+  }
 
-            let currentHeroImage = images.heroDefault;
+  // Wolf logic
+  if (!wolf.active) {
+    wolf.timer++;
+    if (wolf.timer > 100 + Math.random() * 140) spawnWolf();
+  } else {
+    wolf.moveTimer++;
+    wolf.x += wolf.speed * wolf.direction;
+    wolf.y += Math.sin(wolf.moveTimer * 0.035) * 2.5;
 
-            function drawBackground() {
-                if (images.background?.complete) ctx.drawImage(images.background, 0, 0, WORLD_W, WORLD_H);
-                else { ctx.fillStyle = '#6f9e45'; ctx.fillRect(0, 0, WORLD_W, WORLD_H); }
-            }
-            function drawWolf() {
-                if (images.wolf?.complete) ctx.drawImage(images.wolf, 620, WORLD_H - 600, 140, 220);
-            }
-            function drawGiantFruit(x, y) {
-                if (images.fruit?.complete) ctx.drawImage(images.fruit, x, y, FRUIT_SIZE, FRUIT_SIZE);
-                else {
-                    ctx.fillStyle = '#e6321c';
-                    ctx.beginPath();
-                    ctx.ellipse(x+FRUIT_SIZE/2, y+FRUIT_SIZE/2, FRUIT_SIZE/2-5, FRUIT_SIZE/2-3, 0, 0, Math.PI*2);
-                    ctx.fill();
-                }
-            }
-            function drawHero() {
-                if (currentHeroImage?.complete) {
-                    ctx.save(); ctx.shadowBlur = 6;
-                    ctx.drawImage(currentHeroImage, heroX, heroY, heroW, heroH);
-                    ctx.restore();
-                } else {
-                    ctx.fillStyle = '#c0a070';
-                    ctx.fillRect(heroX, heroY, heroW, heroH);
-                }
-            }
-            function drawBearAndRabbit() {
-                if (!specialEventActive) return;
-                const alpha = eventTimer < 20 ? eventTimer / 20 : 1;
-                ctx.globalAlpha = alpha;
-                if (images.bear?.complete) ctx.drawImage(images.bear, 660, WORLD_H - 210, BEAR_W, BEAR_H);
-                if (images.rabbit?.complete) ctx.drawImage(images.rabbit, 840, WORLD_H - 190, RABBIT_W, RABBIT_H);
-                ctx.font = "bold 34px 'Comic Neue'";
-                ctx.fillStyle = "#ffffff"; ctx.shadowBlur = 8;
-                ctx.fillText("🎉 ¡مرحبا ساره! 🎉", 400, WORLD_H - 220);
-                ctx.shadowBlur = 0; ctx.globalAlpha = 1;
-            }
+    if (checkCollision(player, wolf)) {
+      lives--;
+      updateUI();
+      hitTimer = 30;
+      for (let i = 0; i < 25; i++) {
+        particles.push({
+          x: player.x + player.width / 2,
+          y: player.y + player.height / 2,
+          vx: (Math.random() - 0.5) * 14,
+          vy: (Math.random() - 0.5) * 14 - 4,
+          size: 4 + Math.random() * 10,
+          color: ['#ff0000', '#ff4444', '#ff6666', '#ff2222'][Math.floor(Math.random() * 4)],
+          life: 1
+        });
+      }
+      if (lives <= 0) { gameOver(); return; }
+      else {
+        player.x = GAME_WIDTH / 2 - 90;
+        wolf.active = false;
+        wolf.timer = 0;
+      }
+    }
+    if (wolf.x < -wolf.width - 100 || wolf.x > GAME_WIDTH + 100) {
+      wolf.active = false;
+      wolf.timer = 0;
+    }
+  }
+}
 
-            function updateWolfThrows() {
-                if (wolfThrowCooldown <= 0 && !specialEventActive) {
-                    const loboX = 620 + 70;
-                    const loboY = WORLD_H - 600 + 110;
-                    const dir = Math.random() > 0.5 ? 1 : -0.7;
-                    const baseVX = (Math.random() * 3 + 1.8);
-                    const baseVY = 3.2;
-                    wolfFruits.push({
-                        x: loboX, y: loboY, size: FRUIT_SIZE,
-                        vx: baseVX * dir * FRUIT_SPEED_MULTIPLIER,
-                        vy: baseVY * FRUIT_SPEED_MULTIPLIER
-                    });
-                    wolfThrowCooldown = THROW_INTERVAL;
-                    playSound('lanzar', 0.6);
-                } else {
-                    wolfThrowCooldown--;
-                }
-                for (let i = 0; i < wolfFruits.length; i++) {
-                    const f = wolfFruits[i];
-                    f.x += f.vx;
-                    f.y += f.vy;
-                    if (f.y > WORLD_H + 150 || f.x < -150 || f.x > WORLD_W + 150) {
-                        wolfFruits.splice(i, 1);
-                        i--;
-                    }
-                }
-            }
+// --- Draw ---
+function draw() {
+  ctx.save();
+  if (hitTimer > 0) {
+    const shakeX = (Math.random() - 0.5) * 18;
+    const shakeY = (Math.random() - 0.5) * 18;
+    ctx.translate(shakeX, shakeY);
+  }
+  ctx.clearRect(-10, -10, GAME_WIDTH + 20, GAME_HEIGHT + 20);
 
-            function checkFruitCollection() {
-                for (let i = 0; i < wolfFruits.length; i++) {
-                    const f = wolfFruits[i];
-                    if (heroX < f.x + FRUIT_SIZE && heroX + heroW > f.x &&
-                        heroY < f.y + FRUIT_SIZE && heroY + heroH > f.y) {
-                        wolfFruits.splice(i,1);
-                        if (!specialEventActive) {
-                            fruitsCollected = Math.min(fruitsCollected + 1, FRUTAS_OBJETIVO);
-                            document.getElementById('fruitCounter').innerText = fruitsCollected;
-                            playSound('recoger', 0.8);
-                            for(let p=0;p<12;p++) particles.push({
-                                x: f.x+FRUIT_SIZE/2, y: f.y+FRUIT_SIZE/2,
-                                vx: (Math.random()-0.5)*7, vy: (Math.random()-1)* -5,
-                                life: 1, decay: 0.025, size: 4+Math.random()*6, color: '#ffb347'
-                            });
-                            if (fruitsCollected === FRUTAS_OBJETIVO) {
-                                specialEventActive = true;
-                                eventTimer = EVENT_DURATION;
-                                fruitsCollected = 0;
-                                document.getElementById('fruitCounter').innerText = '0';
-                                playSound('celebracion', 0.9);
-                                for (let j=0;j<40;j++) {
-                                    setTimeout(() => {
-                                        for(let k=0;k<5;k++) particles.push({
-                                            x: 750+Math.random()*300, y: WORLD_H-180+Math.random()*100,
-                                            vx: (Math.random()-0.5)*8, vy: (Math.random()-2)* -4,
-                                            life: 1, decay: 0.02, size: 5+Math.random()*8, color: '#ffaa44'
-                                        });
-                                    }, j*30);
-                                }
-                            }
-                        }
-                        break;
-                    }
-                }
-            }
+  if (gameState === 'loading') {
+    ctx.restore();
+    ctx.fillStyle = '#1a1a2e';
+    ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+    ctx.fillStyle = 'white';
+    ctx.font = '40px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('🎮 Cargando...', GAME_WIDTH / 2, GAME_HEIGHT / 2 - 40);
+    const total = assetsLoaded.totalImages + assetsLoaded.totalSounds;
+    const loaded = assetsLoaded.images + assetsLoaded.sounds;
+    const pct = Math.min(1, loaded / total);
+    ctx.fillStyle = '#333';
+    ctx.fillRect(GAME_WIDTH / 2 - 180, GAME_HEIGHT / 2 + 15, 360, 30);
+    ctx.fillStyle = '#e94560';
+    ctx.fillRect(GAME_WIDTH / 2 - 180, GAME_HEIGHT / 2 + 15, 360 * pct, 30);
+    return;
+  }
 
-            function updateMovement() {
-                let moving = false;
-                if (leftPressed && heroX > 12) {
-                    heroX -= MOVE_SPEED;
-                    moving = true;
-                }
-                if (rightPressed && heroX + heroW < WORLD_W - 12) {
-                    heroX += MOVE_SPEED;
-                    moving = true;
-                }
-                heroX = Math.min(Math.max(heroX, 8), WORLD_W - heroW - 8);
-                if (moving) {
-                    stepTimer++;
-                    if (stepTimer >= STEP_INTERVAL) {
-                        playSound('pasos', 0.4);
-                        stepTimer = 0;
-                    }
-                } else {
-                    stepTimer = 0;
-                }
-            }
+  // Background
+  if (assets.images.fondo.complete && assets.images.fondo.naturalWidth > 0) {
+    ctx.drawImage(assets.images.fondo, 0, 0, GAME_WIDTH, GAME_HEIGHT);
+  } else {
+    const grad = ctx.createLinearGradient(0, 0, 0, GAME_HEIGHT);
+    grad.addColorStop(0, '#87CEEB');
+    grad.addColorStop(0.6, '#90EE90');
+    grad.addColorStop(1, '#228B22');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+  }
 
-            function updateParticles() {
-                for (let i=particles.length-1; i>=0; i--) {
-                    const p = particles[i];
-                    p.x += p.vx; p.y += p.vy;
-                    p.vy += 0.2;
-                    p.life -= p.decay;
-                    if (p.life <= 0) particles.splice(i,1);
-                }
-            }
-            function drawParticles() {
-                for (const p of particles) {
-                    ctx.globalAlpha = p.life;
-                    ctx.fillStyle = p.color;
-                    ctx.beginPath();
-                    ctx.arc(p.x, p.y, p.size, 0, Math.PI*2);
-                    ctx.fill();
-                }
-                ctx.globalAlpha = 1;
-            }
+  // Floor decoration
+  ctx.fillStyle = 'rgba(34, 139, 34, 0.35)';
+  ctx.fillRect(0, GAME_HEIGHT - 28, GAME_WIDTH, 28);
 
-            function render() {
-                drawBackground();
-                drawWolf();
-                for (const f of wolfFruits) drawGiantFruit(f.x, f.y);
-                drawParticles();
-                drawHero();
-                drawBearAndRabbit();
-                if (specialEventActive) {
-                    eventTimer--;
-                    if (eventTimer <= 0) specialEventActive = false;
-                }
-            }
+  // Fruits
+  fruits.forEach(f => {
+    ctx.save();
+    if (assets.images.fruta.complete && assets.images.fruta.naturalWidth > 0) {
+      ctx.drawImage(assets.images.fruta, f.x, f.y, f.width, f.height);
+    } else {
+      ctx.fillStyle = '#ff6b6b';
+      ctx.beginPath();
+      ctx.arc(f.x + f.width / 2, f.y + f.height / 2, f.width / 2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#ff3b3b';
+      ctx.beginPath();
+      ctx.arc(f.x + f.width / 2 - 6, f.y + f.height / 2 - 6, f.width / 5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  });
 
-            function gameLoop() {
-                if (!specialEventActive) updateMovement();
-                updateWolfThrows();
-                checkFruitCollection();
-                updateParticles();
-                render();
-                requestAnimationFrame(gameLoop);
-            }
+  // Wolf
+  if (wolf.active) {
+    if (assets.images.lobo.complete && assets.images.lobo.naturalWidth > 0) {
+      ctx.save();
+      if (wolf.direction < 0) ctx.scale(-1, 1);
+      const drawX = wolf.direction < 0 ? -wolf.x - wolf.width : wolf.x;
+      ctx.drawImage(assets.images.lobo, drawX, wolf.y, wolf.width, wolf.height);
+      ctx.restore();
+    } else {
+      ctx.fillStyle = '#555';
+      ctx.fillRect(wolf.x, wolf.y, wolf.width, wolf.height);
+      ctx.fillStyle = '#333';
+      ctx.beginPath();
+      ctx.arc(wolf.x + (wolf.direction > 0 ? wolf.width - 25 : 25), wolf.y + 30, 14, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
 
-            function resetGame() {
-                wolfFruits = [];
-                fruitsCollected = 0;
-                document.getElementById('fruitCounter').innerText = "0";
-                specialEventActive = false;
-                eventTimer = 0;
-                heroX = WORLD_W/2 - heroW/2;
-                wolfThrowCooldown = 5;
-                particles = [];
-                stepTimer = 0;
-            }
+  // Player (Masha)
+  ctx.save();
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  if (assets.images.masha.complete && assets.images.masha.naturalWidth > 0) {
+    ctx.drawImage(assets.images.masha, player.x, player.y, player.width, player.height);
+  } else {
+    ctx.fillStyle = '#ff69b4';
+    ctx.fillRect(player.x, player.y, player.width, player.height);
+    ctx.fillStyle = '#ff1493';
+    ctx.beginPath();
+    ctx.arc(player.x + player.width / 2, player.y + player.height / 3, 24, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
 
-            function setUserPhoto(file) {
-                if (!file) return;
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    const img = new Image();
-                    img.onload = () => { currentHeroImage = img; };
-                    img.src = e.target.result;
-                };
-                reader.readAsDataURL(file);
-            }
+  // Particles
+  particles.forEach(p => {
+    ctx.globalAlpha = Math.max(0, p.life);
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size / 2, 0, Math.PI * 2);
+    ctx.fill();
+  });
+  ctx.globalAlpha = 1;
 
-            // Controles táctiles (idénticos)
-            let touchStartX = null, isDragging = false;
-            canvas.addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                const rect = canvas.getBoundingClientRect();
-                const scale = Math.min(window.innerWidth / WORLD_W, window.innerHeight / WORLD_H);
-                const offsetX = (window.innerWidth - WORLD_W * scale) / 2;
-                touchStartX = (e.touches[0].clientX - rect.left - offsetX) / scale;
-                isDragging = true;
-            });
-            canvas.addEventListener('touchmove', (e) => {
-                e.preventDefault();
-                if (!isDragging) return;
-                const rect = canvas.getBoundingClientRect();
-                const scale = Math.min(window.innerWidth / WORLD_W, window.innerHeight / WORLD_H);
-                const offsetX = (window.innerWidth - WORLD_W * scale) / 2;
-                const canvasX = (e.touches[0].clientX - rect.left - offsetX) / scale;
-                const delta = canvasX - touchStartX;
-                if (Math.abs(delta) > 8) {
-                    rightPressed = (delta > 0);
-                    leftPressed = !rightPressed;
-                    touchStartX = canvasX;
-                }
-            });
-            canvas.addEventListener('touchend', (e) => {
-                e.preventDefault();
-                leftPressed = rightPressed = false;
-                isDragging = false;
-            });
-            canvas.addEventListener('touchcancel', (e) => {
-                e.preventDefault();
-                leftPressed = rightPressed = false;
-                isDragging = false;
-            });
+  ctx.restore();
 
-            window.addEventListener('keydown', (e) => {
-                if (e.key === 'ArrowLeft') { leftPressed = true; e.preventDefault(); }
-                if (e.key === 'ArrowRight') { rightPressed = true; e.preventDefault(); }
-            });
-            window.addEventListener('keyup', (e) => {
-                if (e.key === 'ArrowLeft') leftPressed = false;
-                if (e.key === 'ArrowRight') rightPressed = false;
-            });
+  // Red flash overlay when hit
+  if (hitTimer > 0) {
+    ctx.fillStyle = `rgba(255, 0, 0, ${hitTimer / 60})`;
+    ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+    hitTimer = Math.max(0, hitTimer - 1);
+  }
 
-            document.getElementById('heroPhoto').addEventListener('change', (e) => {
-                if (e.target.files[0]) setUserPhoto(e.target.files[0]);
-            });
-            document.getElementById('resetBtn').addEventListener('click', resetGame);
-            document.getElementById('fullscreenBtn').addEventListener('click', () => {
-                if (document.fullscreenElement) document.exitFullscreen();
-                else document.documentElement.requestFullscreen();
-            });
+  // Celebration: oso y conejo
+  if (celebrationActive) {
+    const bounce = Math.sin(frameCount * 0.06) * 12;
+    const osoWidth = 160, osoHeight = 200;
+    const conejoWidth = 130, conejoHeight = 170;
+    // Oso a la izquierda
+    if (assets.images.oso.complete && assets.images.oso.naturalWidth > 0) {
+      ctx.drawImage(assets.images.oso, 60, GAME_HEIGHT / 2 - osoHeight / 2 + bounce, osoWidth, osoHeight);
+    }
+    // Conejo a la derecha
+    if (assets.images.conejo.complete && assets.images.conejo.naturalWidth > 0) {
+      ctx.drawImage(assets.images.conejo, GAME_WIDTH - 60 - conejoWidth, GAME_HEIGHT / 2 - conejoHeight / 2 - bounce, conejoWidth, conejoHeight);
+    }
+    // Texto extra de celebración
+    ctx.fillStyle = 'rgba(255, 215, 0, 0.6)';
+    ctx.font = 'bold 28px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('🐻 ¡Felicidades! 🐰', GAME_WIDTH / 2, GAME_HEIGHT - 60);
+  }
+}
 
-            // Ya no se inicia automáticamente; esperamos al botón de inicio
-        })();
-    </script>
+// --- Game Loop ---
+function gameLoop() {
+  update();
+  draw();
+  requestAnimationFrame(gameLoop);
+}
+
+// --- Input ---
+document.addEventListener('keydown', (e) => {
+  keys[e.code] = true;
+  if (e.code === 'Space' && (gameState === 'won' || gameState === 'lost')) {
+    resetGame();
+  }
+});
+
+document.addEventListener('keyup', (e) => {
+  keys[e.code] = false;
+});
+
+// Touch controls
+let touchStartX = 0;
+canvas.addEventListener('touchstart', (e) => {
+  e.preventDefault();
+  touchStartX = e.touches[0].clientX;
+  if (gameState === 'won' || gameState === 'lost') resetGame();
+});
+canvas.addEventListener('touchmove', (e) => {
+  e.preventDefault();
+  const touchX = e.touches[0].clientX;
+  const diff = touchX - touchStartX;
+  if (diff > 15) { keys['ArrowRight'] = true; keys['ArrowLeft'] = false; }
+  else if (diff < -15) { keys['ArrowLeft'] = true; keys['ArrowRight'] = false; }
+  else { keys['ArrowLeft'] = false; keys['ArrowRight'] = false; }
+  touchStartX = touchX;
+});
+canvas.addEventListener('touchend', (e) => {
+  keys['ArrowLeft'] = false;
+  keys['ArrowRight'] = false;
+});
+
+// --- Resize for mobile ---
+function resizeGame() {
+  const ww = window.innerWidth;
+  const wh = window.innerHeight;
+  const ratio = GAME_WIDTH / GAME_HEIGHT;
+  const maxW = ww - 8;
+  const maxH = wh - 8;
+  let w = maxW;
+  let h = w / ratio;
+  if (h > maxH) { h = maxH; w = h * ratio; }
+  const container = document.getElementById('gameContainer');
+  container.style.width = w + 'px';
+}
+window.addEventListener('resize', resizeGame);
+window.addEventListener('orientationchange', () => setTimeout(resizeGame, 300));
+
+// --- Start ---
+updateUI();
+resizeGame();
+loadAssets();
+gameLoop();
+</script>
 </body>
 </html>
